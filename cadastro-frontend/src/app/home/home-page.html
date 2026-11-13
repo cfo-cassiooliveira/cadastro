@@ -1,0 +1,32 @@
+<section class="home" aria-labelledby="home-title">
+  <div class="home__intro">
+    <h1 id="home-title" class="home__title" i18n>Seu cadastro do Workspace em um só lugar</h1>
+    <p class="home__lead" i18n>
+      Entre com o seu login ou e-mail e a sua senha para consultar seus dados de contato e de
+      endereço.
+    </p>
+    <div class="home__actions">
+      <button type="button" class="btn btn--primary btn--large" (click)="signIn()" i18n>
+        Entrar
+      </button>
+    </div>
+  </div>
+
+  <!-- Ilustração do cartão de identidade (decorativa): o mesmo cartão que mostra os dados no perfil. -->
+  <div class="home__art" aria-hidden="true">
+    <div class="id-card id-card--sample">
+      <div class="id-card__band">
+        <span class="id-card__monogram">AS</span>
+        <div class="id-card__lines">
+          <span class="id-card__line id-card__line--name"></span>
+          <span class="id-card__line id-card__line--short"></span>
+        </div>
+      </div>
+      <div class="id-card__body">
+        <span class="id-card__line"></span>
+        <span class="id-card__line id-card__line--medium"></span>
+        <span class="id-card__line id-card__line--short"></span>
+      </div>
+    </div>
+  </div>
+</section>

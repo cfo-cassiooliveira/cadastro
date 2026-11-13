@@ -1,0 +1,154 @@
+@use 'breakpoints' as bp;
+
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+}
+
+.topbar {
+  position: relative;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+
+/* Mesma largura máxima e respiro lateral do conteúdo: marca e telas ficam alinhadas em qualquer largura. */
+.topbar__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  max-width: var(--content-max-width);
+  min-height: 4rem;
+  margin: 0 auto;
+  padding: var(--space-3) var(--space-4);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--text);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.brand__mark {
+  display: grid;
+  place-items: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  color: var(--text-on-primary);
+  background: var(--primary);
+  border-radius: var(--radius-sm);
+}
+
+.brand__name {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.brand__tagline {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+.menu-toggle {
+  min-height: 2.75rem;
+  padding: 0 var(--space-4);
+  font: inherit;
+  font-weight: 600;
+  color: var(--text);
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+/* Mobile: o menu abre como painel logo abaixo do cabeçalho. */
+.nav {
+  position: absolute;
+  inset: 100% 0 auto;
+  z-index: 5;
+  display: none;
+  flex-direction: column;
+  align-items: stretch;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  box-shadow: var(--shadow);
+}
+
+.nav--open {
+  display: flex;
+}
+
+.nav__link {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0 var(--space-3);
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: var(--radius-sm);
+}
+
+.nav__link:hover {
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.nav__link--active {
+  color: var(--primary);
+  background: var(--primary-soft);
+}
+
+.nav__user {
+  padding: var(--space-2) var(--space-3);
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+  overflow-wrap: anywhere;
+}
+
+@media (min-width: bp.$md) {
+  .menu-toggle {
+    display: none;
+  }
+
+  .nav {
+    position: static;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 0;
+    background: none;
+    border: 0;
+    box-shadow: none;
+  }
+
+  .nav__user {
+    padding: 0 var(--space-2);
+    border-left: 1px solid var(--border);
+  }
+}
+
+.content {
+  flex: 1;
+  width: 100%;
+  max-width: var(--content-max-width);
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-4) var(--space-8);
+}
+
+.content:focus {
+  outline: none;
+}
+
+.alert {
+  margin-bottom: var(--space-6);
+}

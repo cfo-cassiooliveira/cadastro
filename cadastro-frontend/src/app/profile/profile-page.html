@@ -1,0 +1,70 @@
+<div class="profile">
+  <h1 class="profile__title" i18n>Meu perfil</h1>
+
+  @if (profile.isLoading()) {
+    <div class="id-card id-card--loading" aria-busy="true">
+      <span class="visually-hidden" role="status" i18n>Carregando seu perfil…</span>
+      <div class="id-card__band" aria-hidden="true">
+        <span class="skeleton skeleton--avatar"></span>
+        <div class="id-card__lines">
+          <span class="skeleton skeleton--title"></span>
+          <span class="skeleton skeleton--text"></span>
+        </div>
+      </div>
+      <div class="id-card__body" aria-hidden="true">
+        <span class="skeleton skeleton--text"></span>
+        <span class="skeleton skeleton--text"></span>
+        <span class="skeleton skeleton--text skeleton--short"></span>
+      </div>
+    </div>
+  } @else if (profile.error()) {
+    <div class="alert alert--error profile__error" role="alert">
+      <p class="alert__text" i18n>Não foi possível carregar seu perfil.</p>
+      <button type="button" class="btn btn--secondary btn--small" (click)="retry()" i18n>
+        Tentar de novo
+      </button>
+    </div>
+  } @else if (view(); as person) {
+    <article class="id-card" aria-labelledby="profile-name">
+      <header class="id-card__band">
+        <span class="id-card__monogram" aria-hidden="true">{{ person.initials }}</span>
+        <div class="id-card__identity">
+          <h2 id="profile-name" class="id-card__name">{{ person.name }}</h2>
+          <p class="id-card__login"><span i18n>Login</span> {{ person.userName }}</p>
+        </div>
+      </header>
+
+      <div class="id-card__body">
+        <section class="id-card__section" aria-labelledby="contact-title">
+          <h3 id="contact-title" class="id-card__section-title" i18n>Contato</h3>
+          <dl class="facts">
+            <div class="facts__item">
+              <dt i18n>E-mail</dt>
+              <dd>{{ person.email ?? notInformed }}</dd>
+            </div>
+            <div class="facts__item">
+              <dt i18n>Celular</dt>
+              <dd>{{ person.mobilePhone ?? notInformed }}</dd>
+            </div>
+          </dl>
+        </section>
+
+        <section class="id-card__section" aria-labelledby="address-title">
+          <h3 id="address-title" class="id-card__section-title" i18n>Endereço</h3>
+          @if (person.address; as address) {
+            <address class="profile__address">
+              <span>{{ address.street }}</span>
+              @if (address.complement) {
+                <span>{{ address.complement }}</span>
+              }
+              <span>{{ address.cityLine }}</span>
+              <span><span i18n>CEP</span> {{ address.postalCode }}</span>
+            </address>
+          } @else {
+            <p class="profile__empty" i18n>Endereço não informado.</p>
+          }
+        </section>
+      </div>
+    </article>
+  }
+</div>

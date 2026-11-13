@@ -1,0 +1,56 @@
+@use 'breakpoints' as bp;
+
+.home {
+  display: grid;
+  gap: var(--space-8);
+  align-items: center;
+  padding-block: var(--space-4);
+}
+
+.home__title {
+  max-width: 18ch;
+  margin: 0 0 var(--space-4);
+  font-size: clamp(2rem, 1.4rem + 2.6vw, 3rem);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  color: var(--ws-indigo);
+  text-wrap: balance;
+}
+
+.home__lead {
+  max-width: 46ch;
+  margin: 0 0 var(--space-6);
+  font-size: 1.125rem;
+  color: var(--text-muted);
+}
+
+.home__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* Respiro para o cartão inclinado não encostar na margem. */
+.home__art {
+  display: flex;
+  justify-content: center;
+  padding: var(--space-3);
+}
+
+@media (min-width: bp.$md) {
+  .home {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  }
+
+  .home__art {
+    justify-content: flex-end;
+  }
+}
+
+/* Desktop: o conjunto fica centralizado na altura da janela. */
+@media (min-width: bp.$lg) {
+  .home {
+    min-height: calc(100dvh - 14rem);
+  }
+}

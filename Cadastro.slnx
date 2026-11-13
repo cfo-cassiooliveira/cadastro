@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/cadastro-backend/">
+    <Project Path="cadastro-backend/src/Cadastro.Api/Cadastro.Api.csproj" />
+    <Project Path="cadastro-backend/src/Cadastro.Application/Cadastro.Application.csproj" />
+    <Project Path="cadastro-backend/src/Cadastro.Domain/Cadastro.Domain.csproj" />
+    <Project Path="cadastro-backend/src/Cadastro.Infrastructure/Cadastro.Infrastructure.csproj" />
+  </Folder>
+  <Folder Name="/cadastro-backend/tests/">
+    <Project Path="cadastro-backend/tests/Cadastro.Api.IntegrationTests/Cadastro.Api.IntegrationTests.csproj" />
+    <Project Path="cadastro-backend/tests/Cadastro.Application.Tests/Cadastro.Application.Tests.csproj" />
+    <Project Path="cadastro-backend/tests/Cadastro.ArchitectureTests/Cadastro.ArchitectureTests.csproj" />
+  </Folder>
+</Solution>

@@ -1,0 +1,5 @@
+[*.cs]
+# Nomes de teste seguem Method_Condition_ExpectedResult (steering de testes), que usa sublinhados.
+dotnet_diagnostic.CA1707.severity = none
+# Classes de teste precisam ser públicas para o xUnit, mas não são API pública.
+dotnet_diagnostic.CA1515.severity = none

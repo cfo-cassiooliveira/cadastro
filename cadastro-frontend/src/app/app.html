@@ -1,0 +1,73 @@
+<a class="skip-link" href="#main-content" i18n>Pular para o conteúdo</a>
+<header class="topbar">
+  <div class="topbar__inner">
+    <a class="brand" routerLink="/">
+      <span class="brand__mark" aria-hidden="true">C</span>
+      <span class="brand__name">
+        Cadastro
+        <small class="brand__tagline" i18n>Workspace</small>
+      </span>
+    </a>
+    @if (auth.isAuthenticated()) {
+      <button
+        type="button"
+        class="menu-toggle"
+        aria-controls="main-nav"
+        [attr.aria-expanded]="menuOpen()"
+        (click)="toggleMenu()"
+        i18n
+      >
+        Menu
+      </button>
+      <nav
+        id="main-nav"
+        class="nav"
+        [class.nav--open]="menuOpen()"
+        aria-label="Principal"
+        i18n-aria-label
+      >
+        <a
+          class="nav__link"
+          routerLink="/profile"
+          routerLinkActive="nav__link--active"
+          ariaCurrentWhenActive="page"
+          i18n
+          >Meu perfil</a
+        >
+        <span class="nav__user">
+          <span class="visually-hidden" i18n>Conectado como </span>{{ auth.user().userName }}
+        </span>
+        <button type="button" class="btn btn--ghost btn--small" (click)="signOut()" i18n>
+          Sair
+        </button>
+      </nav>
+    } @else {
+      <button type="button" class="btn btn--secondary btn--small" (click)="signIn()" i18n>
+        Entrar
+      </button>
+    }
+  </div>
+</header>
+<main id="main-content" class="content" tabindex="-1">
+  @if (notice(); as current) {
+    <div
+      class="alert"
+      [class.alert--success]="current.tone === 'success'"
+      [class.alert--info]="current.tone === 'info'"
+      [class.alert--error]="current.tone === 'error'"
+      [attr.role]="current.tone === 'error' ? 'alert' : 'status'"
+    >
+      <p class="alert__text">{{ current.text }}</p>
+      <button
+        type="button"
+        class="alert__close"
+        (click)="dismissNotice()"
+        aria-label="Fechar aviso"
+        i18n-aria-label
+      >
+        <span aria-hidden="true">×</span>
+      </button>
+    </div>
+  }
+  <router-outlet />
+</main>

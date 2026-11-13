@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <title>Cadastro — Workspace</title>
+    <base href="/" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta
+      name="description"
+      content="Cadastro de usuários do Workspace com acesso pelo Keycloak."
+    />
+    <!-- Sistema interno com área autenticada e dados pessoais: fora dos buscadores. -->
+    <meta name="robots" content="noindex, nofollow" />
+    <link rel="icon" type="image/svg+xml" href="favicon.svg" />
+  </head>
+  <body>
+    <!-- __CSP_NONCE__ é trocado pelo nginx por um nonce aleatório a cada requisição (ver security-headers.conf). -->
+    <app-root ngCspNonce="__CSP_NONCE__"></app-root>
+  </body>
+</html>

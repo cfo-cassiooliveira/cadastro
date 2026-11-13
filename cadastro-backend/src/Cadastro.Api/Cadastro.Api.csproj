@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <PropertyGroup>
+    <UserSecretsId>cadastro-api-4b9e2a71</UserSecretsId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Cadastro.Application\Cadastro.Application.csproj" />
+    <!-- Referência à Infrastructure apenas para o composition root (DI). -->
+    <ProjectReference Include="..\Cadastro.Infrastructure\Cadastro.Infrastructure.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.OpenIdConnect" />
+    <PackageReference Include="Microsoft.AspNetCore.OpenApi" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Cadastro.Api.IntegrationTests" />
+  </ItemGroup>
+</Project>
