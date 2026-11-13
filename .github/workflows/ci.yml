@@ -1,0 +1,148 @@
+# Pipeline de CI do Cadastro: segredos (gitleaks), dependências e misconfig (Trivy), build com warnings como erro,
+# testes (integração com Keycloak real via Testcontainers), lint, SonarQube com Quality Gate (Art. V.2/V.3) e
+# imagens com Trivy. O E2E (Playwright) precisa do Keycloak do repositório ../keycloak e roda localmente
+# (./scripts/e2e.sh) até existir um ambiente compartilhado de integração.
+# SonarQube é OPCIONAL enquanto o time não tiver um servidor: sem os segredos abaixo o job "quality-gate"
+# é pulado (não falha) e o resto do pipeline segue. Com os segredos, o Quality Gate volta a ser obrigatório.
+# Segredos (Settings > Secrets and variables > Actions), nunca no código:
+#   SONAR_TOKEN     token de análise do SonarQube
+#   SONAR_HOST_URL  URL do SonarQube Server do time
+name: ci
+
+on:
+  push:
+    branches: [master, 'DEV-*']
+  pull_request:
+
+permissions:
+  contents: read
+
+env:
+  GITLEAKS_IMAGE: zricethezav/gitleaks:v8.28.0@sha256:cdbb7c955abce02001a9f6c9f602fb195b7fadc1e812065883f695d1eeaba854
+  TRIVY_IMAGE: aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
+
+jobs:
+  secrets:
+    name: gitleaks (segredos em todo o histórico)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      # Falsos positivos ficam no .gitleaksignore (fingerprint + motivo).
+      - run: docker run --rm -v "$PWD:/repo" "$GITLEAKS_IMAGE" git /repo --no-banner --redact --exit-code 1
+
+  trivy-fs:
+    name: Trivy (dependências NuGet/npm e misconfig de Dockerfile/compose)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: >-
+          docker run --rm -v "$PWD:/src" "$TRIVY_IMAGE" fs --scanners vuln,misconfig
+          --severity HIGH,CRITICAL --ignore-unfixed --skip-version-check --ignorefile /src/.trivyignore.yaml
+          --exit-code 1 /src
+
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - run: dotnet restore Cadastro.slnx
+      - run: dotnet build Cadastro.slnx -warnaserror --no-restore
+      - run: dotnet format Cadastro.slnx --verify-no-changes --no-restore
+      # Testes de integração sobem um Keycloak real (Testcontainers; Docker disponível no runner ubuntu).
+      - run: dotnet test --solution Cadastro.slnx --no-build
+      - run: dotnet list Cadastro.slnx package --vulnerable --include-transitive
+
+  frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: cadastro-frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: cadastro-frontend/package-lock.json
+      - run: npm ci
+      - run: npx ng lint
+      - run: npm run lint:styles
+      - run: npx prettier --check "src/**/*.{ts,html,scss}"
+      - run: npx ng test --watch=false
+      - run: npx ng build
+      - run: npm audit --omit=dev
+
+  sonar-config:
+    # O "if" de um job não lê secrets diretamente: este passo publica se o SonarQube está configurado.
+    runs-on: ubuntu-latest
+    outputs:
+      enabled: ${{ steps.check.outputs.enabled }}
+    steps:
+      - id: check
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        run: |
+          if [ -n "$SONAR_TOKEN" ] && [ -n "$SONAR_HOST_URL" ]; then
+            echo "enabled=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "enabled=false" >> "$GITHUB_OUTPUT"
+            echo "::notice title=SonarQube não configurado::Defina SONAR_TOKEN e SONAR_HOST_URL para ativar o Quality Gate."
+          fi
+
+  quality-gate:
+    # Análise SonarQube do backend e do frontend; o job falha se o Quality Gate reprovar.
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, sonar-config]
+    if: needs.sonar-config.outputs.enabled == 'true'
+    env:
+      SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+      SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # histórico completo para o "código novo" do Sonar
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: actions/setup-dotnet@v4
+        with:
+          global-json-file: global.json
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: cadastro-frontend/package-lock.json
+      - run: npm ci
+        working-directory: cadastro-frontend
+      # Mesmo script da análise local (fonte única dos parâmetros); falha se o Quality Gate reprovar.
+      - name: SonarQube (cobertura, análise e Quality Gate)
+        run: ./scripts/sonar-analysis.sh
+
+  images:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend, quality-gate]
+    # Roda com o Sonar aprovado OU pulado (não configurado); nunca com o Quality Gate reprovado.
+    if: >-
+      always() &&
+      needs.backend.result == 'success' &&
+      needs.frontend.result == 'success' &&
+      (needs.quality-gate.result == 'success' || needs.quality-gate.result == 'skipped')
+    steps:
+      - uses: actions/checkout@v4
+      # Segredo descartável gerado no runner (nunca versionado nem impresso): o compose exige a variável.
+      - name: .env descartável
+        run: echo "KC_CADASTRO_CLIENT_SECRET=$(openssl rand -hex 24)" > .env
+      - run: docker compose build
+      - name: Trivy nas imagens (HIGH/CRITICAL com correção; exceções com prazo no .trivyignore.yaml)
+        run: |
+          for image in cadastro-api cadastro-web; do
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD:/src" "$TRIVY_IMAGE" image \
+              --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --skip-version-check \
+              --ignorefile /src/.trivyignore.yaml --exit-code 1 "$image"
+          done
