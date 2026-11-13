@@ -1,0 +1,3 @@
+# Exceções da varredura de vulnerabilidades (Trivy). Cada entrada tem justificativa e prazo (expired_at): ao expirar,
+# o CI volta a falhar e a decisão precisa ser revista (security.md). Sem exceções no momento.
+vulnerabilities: []

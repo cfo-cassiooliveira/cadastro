@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="TngTech.ArchUnitNET.xUnitV3" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Todas as camadas: as regras verificam as dependências entre elas (Constituição Art. III). -->
+    <ProjectReference Include="..\..\src\Cadastro.Domain\Cadastro.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Cadastro.Application\Cadastro.Application.csproj" />
+    <ProjectReference Include="..\..\src\Cadastro.Infrastructure\Cadastro.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Cadastro.Api\Cadastro.Api.csproj" />
+  </ItemGroup>
+</Project>

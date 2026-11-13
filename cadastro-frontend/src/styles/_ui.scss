@@ -1,0 +1,307 @@
+/* Componentes de interface compartilhados pelas telas: botões, avisos, esqueleto de carregamento e o cartão de
+   identidade (elemento visual central do Cadastro: ilustração no Início, dados no perfil). */
+@use 'breakpoints' as bp;
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 2.75rem;
+  padding: 0 var(--space-6);
+  font: inherit;
+  font-weight: 700;
+  line-height: 1.2;
+  text-decoration: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition:
+    background-color var(--transition),
+    border-color var(--transition);
+}
+
+.btn--primary {
+  color: var(--text-on-primary);
+  background: var(--primary);
+}
+
+.btn--primary:hover {
+  background: var(--primary-hover);
+}
+
+.btn--secondary {
+  color: var(--primary);
+  background: var(--surface);
+  border-color: var(--primary);
+}
+
+.btn--secondary:hover {
+  background: var(--primary-soft);
+}
+
+.btn--ghost {
+  color: var(--text);
+  background: transparent;
+  border-color: var(--border-strong);
+}
+
+.btn--ghost:hover {
+  border-color: var(--text);
+}
+
+.btn--small {
+  min-height: 2.5rem;
+  padding: 0 var(--space-4);
+}
+
+.btn--large {
+  min-height: 3.25rem;
+  padding: 0 var(--space-8);
+  font-size: 1.0625rem;
+}
+
+.alert {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid transparent;
+  border-left-width: 4px;
+  border-radius: var(--radius-sm);
+}
+
+.alert__text {
+  margin: 0;
+  font-weight: 600;
+}
+
+.alert--success {
+  color: var(--success-text);
+  background: var(--success-soft);
+  border-color: var(--success-text);
+}
+
+.alert--info {
+  color: var(--ws-indigo);
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+
+.alert--error {
+  color: var(--danger-text);
+  background: var(--danger-soft);
+  border-color: var(--danger-text);
+}
+
+.alert__close {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 2.75rem;
+  height: 2.75rem;
+  font: inherit;
+  font-size: 1.5rem;
+  line-height: 1;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+}
+
+.skeleton {
+  display: block;
+  background: linear-gradient(
+    90deg,
+    var(--skeleton-base) 0%,
+    var(--skeleton-shine) 50%,
+    var(--skeleton-base) 100%
+  );
+  background-size: 200% 100%;
+  border-radius: var(--radius-sm);
+  animation: skeleton-shine 1.4s ease-in-out infinite;
+}
+
+.skeleton--title {
+  width: 60%;
+  height: 1.5rem;
+}
+
+.skeleton--text {
+  width: 100%;
+  height: 1rem;
+}
+
+.skeleton--short {
+  width: 45%;
+}
+
+.skeleton--avatar {
+  flex: none;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+}
+
+@keyframes skeleton-shine {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton {
+    animation: none;
+  }
+
+  .btn {
+    transition: none;
+  }
+}
+
+/* Cartão de identidade: faixa índigo com o monograma e a linha em água; corpo com os dados. */
+.id-card {
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.id-card__band {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  color: var(--text-on-primary);
+  background: var(--ws-indigo);
+  border-bottom: 6px solid var(--ws-aqua);
+}
+
+.id-card__monogram {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  font-size: 1.25rem;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--ws-indigo);
+  background: var(--ws-sky);
+  border-radius: 50%;
+}
+
+.id-card__identity {
+  min-width: 0;
+}
+
+.id-card__name {
+  margin: 0;
+  font-size: 1.375rem;
+  font-weight: 800;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.id-card__login {
+  margin: var(--space-1) 0 0;
+  color: var(--band-text-muted);
+  overflow-wrap: anywhere;
+}
+
+.id-card__body {
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-6);
+}
+
+.id-card__section-title {
+  margin: 0 0 var(--space-3);
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ws-indigo);
+}
+
+.facts {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+}
+
+.facts__item dt {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.facts__item dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Carregando: faixa clara para o esqueleto aparecer. */
+.id-card--loading .id-card__band {
+  background: var(--primary-soft);
+  border-bottom-color: var(--border);
+}
+
+.id-card__lines {
+  display: grid;
+  flex: 1;
+  gap: var(--space-2);
+}
+
+.id-card--loading .id-card__body {
+  gap: var(--space-3);
+}
+
+/* Ilustração do Início: o mesmo cartão em versão gráfica, levemente inclinado. */
+.id-card--sample {
+  width: min(100%, 22rem);
+  transform: rotate(-3deg);
+}
+
+.id-card__line {
+  display: block;
+  height: 0.75rem;
+  background: var(--border);
+  border-radius: 999px;
+}
+
+.id-card__band .id-card__line {
+  background: var(--band-line);
+}
+
+.id-card__line--name {
+  width: 75%;
+  height: 1rem;
+}
+
+.id-card__line--medium {
+  width: 70%;
+}
+
+.id-card__line--short {
+  width: 45%;
+}
+
+.id-card--sample .id-card__body {
+  gap: var(--space-4);
+}
+
+@media (min-width: bp.$md) {
+  .id-card__body {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .id-card--sample .id-card__body,
+  .id-card--loading .id-card__body {
+    grid-template-columns: 1fr;
+  }
+}

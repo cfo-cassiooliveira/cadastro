@@ -1,0 +1,13 @@
+{
+  "name": "cadastro-e2e",
+  "private": true,
+  "description": "E2E do frontend do cadastro (Playwright + axe-core) em desktop, tablet e celular, contra o docker compose.",
+  "type": "commonjs",
+  "scripts": {
+    "test": "playwright test"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "4.14.0",
+    "@playwright/test": "1.64.1"
+  }
+}

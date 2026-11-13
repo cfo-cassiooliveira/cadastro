@@ -1,0 +1,57 @@
+# Ambiente local do Cadastro: api (BFF .NET) -> web (nginx + Angular).
+# Antes da primeira subida: ./scripts/generate-env.sh && ./scripts/identity-network.sh (Keycloak de pé em ../keycloak).
+# Uso: docker compose up -d --build   → http://localhost:4300
+name: cadastro
+
+services:
+  api:
+    build:
+      context: .
+      dockerfile: cadastro-backend/Dockerfile
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${API_ENVIRONMENT:-Production}
+      # Discovery e tokens pela rede interna (keycloak:8080); o issuer continua o do navegador (localhost:8180).
+      Oidc__MetadataAddress: http://keycloak:8080/realms/workspace/.well-known/openid-configuration
+      # HTTP só no ambiente local (Keycloak sem TLS próprio, fora de escopo da spec 001).
+      Oidc__RequireHttpsMetadata: "false"
+      Oidc__ClientSecret: ${KC_CADASTRO_CLIENT_SECRET:?defina KC_CADASTRO_CLIENT_SECRET no .env (./scripts/generate-env.sh)}
+      # Mesmo client: a conta de serviço lê e grava usuários pela Admin API (ADR-0002).
+      KeycloakAdmin__ClientSecret: ${KC_CADASTRO_CLIENT_SECRET}
+      DataProtection__KeysPath: /keys
+      # http://localhost é contexto seguro para o navegador (cookies __Host-/Secure); só neste compose local.
+      Bff__LocalSecureContext: "true"
+    volumes:
+      # Chaves que cifram o cookie e o antiforgery sobrevivem ao restart do container.
+      - api-keys:/keys
+    networks:
+      - default
+      - identity
+    # Sem "ports": a API só é acessível pela rede interna, via nginx do frontend.
+    healthcheck:
+      # A imagem aspnet não traz curl/wget: a sonda usa o /dev/tcp do bash (o /bin/sh da imagem é o dash).
+      test: ["CMD", "bash", "-c", "exec 3<>/dev/tcp/127.0.0.1/8080 && printf 'GET /health/live HTTP/1.0\\r\\n\\r\\n' >&3 && grep -q '200 OK' <&3"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+      start_period: 10s
+    restart: unless-stopped
+
+  web:
+    build:
+      context: cadastro-frontend
+    # Só na máquina local: a aplicação mostra dados pessoais e não deve ficar exposta na rede.
+    ports:
+      - "127.0.0.1:4300:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+
+networks:
+  # Rede compartilhada com o Keycloak e o Legado (spec 001); criada por ./scripts/identity-network.sh.
+  identity:
+    name: workspace-identity
+    external: true
+
+volumes:
+  api-keys:

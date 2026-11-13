@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Cadastro.Api\Cadastro.Api.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Realm mínimo importado pelo Keycloak de teste (Testcontainers). -->
+    <None Update="Infrastructure\workspace-realm.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" />
+    <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Testcontainers.Keycloak" />
+  </ItemGroup>
+</Project>

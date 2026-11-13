@@ -1,0 +1,55 @@
+/* Design tokens do Cadastro: identidade do Workspace (mesma paleta do tema "workspace" do Keycloak).
+   Única fonte de cores, raios, sombras e espaçamentos (o Stylelint barra hex fora daqui). */
+:root {
+  /* Paleta do Workspace: céu, pervinca e água; os tons escuros derivam da pervinca para garantir contraste AA. */
+  --ws-sky: #7fc1ef;
+  --ws-periwinkle: #7f88ef;
+  --ws-aqua: #80ebe0;
+  --ws-indigo: #262a6b;
+  --ws-periwinkle-dark: #4a52c9;
+  --ws-periwinkle-darker: #3a41a8;
+  --ws-paper: #f6f7fd;
+  --ws-graphite: #1c2236;
+
+  /* Papéis semânticos usados pelos componentes. */
+  --primary: var(--ws-periwinkle-dark);
+  --primary-hover: var(--ws-periwinkle-darker);
+  --primary-soft: #eceefd;
+  --surface: #fff;
+  --background: var(--ws-paper);
+  --border: #e3e5f2;
+
+  /* Borda de campo: >= 3:1 contra a superfície (WCAG 1.4.11). */
+  --border-strong: #7a8099;
+  --text: var(--ws-graphite);
+
+  /* >= 4,5:1 sobre o fundo e sobre a superfície. */
+  --text-muted: #5b6178;
+  --text-on-primary: #fff;
+  --focus-ring: 0 0 0 3px rgb(127 136 239 / 55%);
+  --danger-text: #9b1c1c;
+  --danger-soft: #fdf1f1;
+  --success-text: #13653a;
+  --success-soft: #eefbf3;
+
+  /* Esqueleto de carregamento e linhas claras sobre a faixa índigo do cartão. */
+  --skeleton-base: #e6e8f5;
+  --skeleton-shine: #f3f4fb;
+  --band-line: rgb(255 255 255 / 35%);
+
+  /* Texto secundário sobre a faixa índigo: >= 4,5:1. */
+  --band-text-muted: #cdd2f6;
+  --font-family:
+    'Manrope', system-ui, -apple-system, 'Segoe UI', roboto, 'Helvetica Neue', arial, sans-serif;
+  --radius-sm: 8px;
+  --radius: 12px;
+  --shadow: 0 1px 2px rgb(28 34 54 / 5%), 0 8px 24px rgb(28 34 54 / 8%);
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --content-max-width: 72rem;
+  --transition: 150ms ease;
+}
