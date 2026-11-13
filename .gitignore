@@ -1,0 +1,25 @@
+# .NET
+bin/
+obj/
+*.user
+TestResults/
+coverage*/
+# Angular / Node
+node_modules/
+dist/
+.angular/
+# Segredos locais (Art. IV.4): .env e credenciais emitidas pelo legado (CA, chave HMAC)
+.env
+secrets/
+# IDE
+.vs/
+.idea/
+.serena/
+# Relatórios de cobertura
+cadastro-frontend/coverage/
+*.coverage.xml
+# Diretório de trabalho do SonarScanner for .NET
+.sonarqube/
+# Artefatos do E2E (Playwright)
+e2e/test-results/
+e2e/playwright-report/
