@@ -69,6 +69,11 @@ docker compose up -d --build                               # http://localhost:43
 - Tokens só com id, login e roles (client `cadastro` sem scopes `profile`/`email`); a sessão guarda só `sub`,
   `preferred_username`, `sid` e roles. Cobertos por `tests/Cadastro.Api.IntegrationTests/Auth/`.
 - `Bff:LocalSecureContext` só no compose local (http://localhost é contexto seguro para o navegador).
+- **Dado pessoal em log, quando inevitável, só como campo estruturado** com o nome do tipo: `{Cpf}`, `{Cnpj}`,
+  `{Phone}`/`{MobilePhone}`, `{UserName}`, `{Email}` no message template (`[LoggerMessage]`), **nunca**
+  concatenado ou interpolado no texto. O Graylog mascara pelo nome do campo e troca o mesmo valor dentro do texto,
+  sem adivinhar o tipo (ADR-0002 do `../graylog`). Nome fora dessa lista não tem máscara garantida: nome novo entra
+  antes nas listas `LGPD_*` do `../graylog/provisioning/provision.sh`.
 
 ## Decisões e particularidades
 
