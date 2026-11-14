@@ -124,10 +124,10 @@ Os nomes exatos das propriedades por provider e as classes base (`UsernamePasswo
 | Infrastructure `Auth/` | Login próprio recusa conta migrada com `auth.account_migrated` **só após senha correta** | — |
 | Api `Internal/` | Endpoints internos (§4) servidos **só** no endpoint Kestrel HTTPS `:8443` (habilitado por `InternalApi:Enabled`); esquema de autenticação próprio `LegadoHmac` (chaves por chamador, janela de 60 s, anti-reenvio em memória, duas chaves ativas por chamador) | Policy por permissão do chamador |
 | `scripts/internal-credentials.sh` | Gera CA local + certificado `legado-api` (SAN) e uma chave HMAC por chamador (`keycloak`, `cadastro`); privados só em `secrets/` (fora do git); exporta a CA pública e a chave de cada chamador | — |
-| Api `Users/` | `POST /users` responde 410 `registration.closed` quando `Features:SelfRegistrationEnabled=false` | Feature flag de configuração |
 | Database | Migration `AddUserMigrationColumns` | Expand |
 | nginx (web) | `location /api/v1/internal/ { return 404; }` | Defesa em profundidade |
-| Frontend | Login trata `auth.account_migrated`; cadastro trata `registration.closed`; links para `http://localhost:4300` por configuração | — |
+| Api `Auth/` | Login de conta migrada devolve `newSystemUrl` (`Migration:NewSystemUrl`, só http(s), validado na subida) | Configuração |
+| Frontend | Login trata `auth.account_migrated`: aviso, link e redirecionamento em 5 s para o `newSystemUrl` ("Ficar nesta página" cancela) | — |
 | `docker-compose.identity.yml` | Liga `InternalApi:Enabled`, monta certificado e chaves, conecta `api` à rede `workspace-identity` com alias `legado-api` | — |
 | Health checks | Inalterados: nunca verificam Keycloak nem Cadastro | — |
 
@@ -194,11 +194,12 @@ Todas as respostas usam `Cache-Control: no-store`; erros em ProblemDetails com c
 **Autenticação (HMAC)**: cada chamada leva o cabeçalho
 
 ```
-X-Legado-Signature: keyId=keycloak-1, t=1763035200, v1=<base64(HMAC-SHA256(chave, t + "\n" + MÉTODO + "\n" + rota + "\n" + hex(SHA-256(corpo))))>
+X-Legado-Signature: keyId=keycloak-1, t=1763035200, n=<nonce base64url>, v1=<base64(HMAC-SHA256(chave, t + "\n" + nonce + "\n" + MÉTODO + "\n" + rota + "\n" + hex(SHA-256(corpo))))>
 ```
 
 O Legado recusa (401 ProblemDetails, sem detalhar o motivo) se: `keyId` desconhecido; `|agora − t| > 60 s`;
-assinatura diferente (comparação em tempo constante); mesma assinatura já vista nos últimos 60 s (anti-reenvio).
+assinatura diferente (comparação em tempo constante); mesmo nonce já visto para a chave nos últimos 120 s (anti-reenvio; um nonce novo por chamada, inclusive
+nas retentativas).
 Chaves de 256 bits, uma por chamador, com até duas ativas por chamador (troca sem parada).
 
 | Método | Rota | Chamador permitido | Request | Resposta 200 |
@@ -279,7 +280,7 @@ no Keycloak perde acesso em até 10 min); antiforgery por header `X-XSRF-TOKEN`;
 | `LEGACY_UNAVAILABLE` | Error | `masked_login`, `flow`, `error` (`timeout`/`http_5xx`/`invalid_response`...) |
 
 **Legado**: `[LoggerMessage]` para verificação (Information/Warning com `legacy_user_id` quando existe, nunca
-login), marcação, login recusado por migração, cadastro fechado e **assinatura recusada** (Warning, com `key_id` e
+login), marcação, login recusado por migração e **assinatura recusada** (Warning, com `key_id` e
 motivo: `unknown_key`/`expired`/`invalid`/`replay`; nunca a assinatura nem a chave).
 **Cadastro**: cadastro concluído (Information, `user_id`), conflito (Warning), Keycloak/Legado indisponível (Error),
 login/logout BFF (Information), 401/403 (Warning). Mesmos testes de log do Legado (sem dado pessoal).
@@ -306,7 +307,7 @@ login/logout BFF (Information), 401/403 (Warning). Mesmos testes de log do Legad
 | Legado: HMAC (sem cabeçalho, `keyId` desconhecido, fora da janela, corpo alterado, reenvio, chamador sem permissão, 2ª chave ativa) e porta interna (só HTTPS 8443; desligada sem o override; nginx 404) | ✅ `HmacSignatureValidatorTests` | ✅ | ✅ nginx |
 | Legado independente: sobe e passa no E2E existente sem Keycloak, sem Cadastro e sem a rede `workspace-identity` | | | ✅ |
 | Assinador HMAC do Keycloak e do Cadastro gera a mesma assinatura que o validador do Legado (vetores de teste compartilhados no ADR-0005 do legado) | ✅ (Java e .NET) | | |
-| Legado: login de conta migrada, sessões revogadas, cadastro fechado | ✅ | ✅ | ✅ (Playwright existente) |
+| Legado: login de conta migrada (aviso + redirecionamento), sessões revogadas | ✅ | ✅ | ✅ (Playwright existente) |
 | Cadastro: register (sucesso, conflitos, Legado/Keycloak fora), me, list (403), BFF (login, logout, `returnUrl` externo, antiforgery, cookie) | ✅ handlers | ✅ `WebApplicationFactory` + Keycloak em Testcontainers (`Testcontainers.Keycloak`) com o realm do repositório + Legado fake | |
 | `ArchitectureTests` do Cadastro (regra de dependência, convenções CQRS) | ✅ | | |
 | Frontend: 4 estados de cada tela, checklist de senha, interceptor 401, guards | ✅ Vitest | | ✅ Playwright + axe (desktop, tablet, celular) |
@@ -331,6 +332,6 @@ login/logout BFF (Information), 401/403 (Warning). Mesmos testes de log do Legad
 
 - **keycloak ADR-0006**: Migração sob demanda do Legado por Authenticator + API do Legado — Proposto
 - **keycloak ADR-0007**: Identificador mascarado nos eventos de migração (exceção ao ADR-0002) — Proposto
-- **legado ADR-0005**: API interna de migração (TLS + HMAC emitidos pelo Legado), marcação, cadastro fechado e independência do Legado — Proposto
+- **legado ADR-0005**: API interna de migração (TLS + HMAC emitidos pelo Legado), marcação, login de conta migrada e independência do Legado — Proposto
 - **cadastro ADR-0001**: BFF com sessão no servidor (em memória) — Proposto
 - **cadastro ADR-0002**: Dados do usuário no User Profile do Keycloak, sem banco próprio — Proposto

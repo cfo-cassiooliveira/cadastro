@@ -83,14 +83,14 @@ vêm a migração e o restante.
 
 ## Fase 2 — Legado: API interna de migração
 
-- [ ] **T09** [LG] — Migration `AddUserMigrationColumns` e escrita da marcação
+- [x] **T09** [LG] — Migration `AddUserMigrationColumns` e escrita da marcação
   - Arquivos: `legado-database/src/Legado.Database/Migrations/*`, `ApplicationUser` (`MigratedAt`,
     `KeycloakUserId`), `Infrastructure/Users/UserMigrationWriter` (grava e renova o `SecurityStamp`)
   - Testes inclusos: integração Testcontainers (migration aplica no banco existente; marcação idempotente; outro
     `keycloakUserId` → conflito; `SecurityStamp` muda na 1ª marcação)
   - Pronto quando: migrator aplica sem erro sobre o volume atual (expand, sem quebra da versão em execução)
 
-- [ ] **T10** [LG] — Porta interna HTTPS + autenticação HMAC e grupo `/api/v1/internal`
+- [x] **T10** [LG] — Porta interna HTTPS + autenticação HMAC e grupo `/api/v1/internal`
   - Depende de: T09
   - Arquivos: `scripts/internal-credentials.sh` (CA local, certificado `legado-api` com SAN e validade de 1 ano,
     chave HMAC de 256 bits por chamador; idempotente; privados em `secrets/` no `.gitignore`/`.dockerignore`),
@@ -104,7 +104,7 @@ vêm a migração e o restante.
   - Pronto quando: `docker compose up` **sem** o override sobe o Legado como hoje (sem 8443, sem rede externa) e os
     testes de `tests/.../Security/` continuam verdes
 
-- [ ] **T11** [LG] — `credential-verifications`, `user-lookups`, `users/{id}/migration`, `user-existence-checks`
+- [x] **T11** [LG] — `credential-verifications`, `user-lookups`, `users/{id}/migration`, `user-existence-checks`
   - Depende de: T10
   - Arquivos: `Application/Users/Migration/*Handler`, `Infrastructure/Users/IdentityLegacyCredentialVerifier`
     (lockout ligado, hash fictício para inexistente), `LegacyUserReadService`
@@ -113,13 +113,14 @@ vêm a migração e o restante.
     < 30% na mediana de 20 chamadas); teste de log (sem login/e-mail/senha)
   - Pronto quando: OpenAPI de Development lista os 4 endpoints com ProblemDetails
 
-- [ ] **T12** [P] [LG] — Login recusa conta migrada e autocadastro fechado (backend + frontend)
+- [x] **T12** [P] [LG] — Login de conta migrada: aviso e redirecionamento para o Cadastro (backend + frontend)
   - Depende de: T09
-  - Arquivos: `Infrastructure/Auth/*` (`auth.account_migrated` só após senha correta), `Api/Users` (410
-    `registration.closed` com `Features:SelfRegistrationEnabled`), frontend: login e cadastro com os microtextos
-    e links configuráveis para o Cadastro
+  - Arquivos: `Infrastructure/Auth/*` (`auth.account_migrated` só após senha correta), `Api/Auth` (`newSystemUrl` de
+    `Migration:NewSystemUrl` na resposta), frontend: login com o aviso, o link e o redirecionamento em 5 s
+    ("Ficar nesta página" cancela). O autocadastro do Legado continua aberto (decisão revista: RN-09)
   - Testes inclusos: integração (senha certa → `auth.account_migrated`; errada → genérica; sessão anterior
-    revogada; 410); Vitest das mensagens; E2E existente atualizado
+    revogada; `newSystemUrl` só com a senha certa; URL insegura barra a subida); Vitest do aviso, redirecionamento
+    e cancelamento; E2E do login migrado
   - Pronto quando: verificação visual com zero defeitos nas telas alteradas (matriz + varredura)
 
 ## Fase 3 — Keycloak: SPI de migração
