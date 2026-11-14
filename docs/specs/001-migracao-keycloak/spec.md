@@ -164,16 +164,13 @@ Cenário: usuário migrado tenta entrar no Legado
   Dado "ana.souza" já foi migrada
   Quando ela entra no Legado com a senha correta
   Então vê "Sua conta foi transferida para o novo sistema." com o link "Ir para o novo sistema"
+  E em 5 segundos é levada ao Cadastro, a menos que escolha "Ficar nesta página"
   E as sessões abertas dela no Legado deixam de valer
 
 Cenário: senha errada de conta migrada no Legado
   Dado "ana.souza" já foi migrada
   Quando alguém informa a senha errada no Legado
   Então vê "Usuário ou senha inválidos." (o aviso de migração só aparece com a senha correta)
-
-Cenário: autocadastro no Legado
-  Quando um visitante tenta se cadastrar no Legado
-  Então vê "O cadastro agora é feito no novo sistema." com o link "Criar conta no novo sistema"
 
 Cenário: Legado funcionando sem o Keycloak
   Dado que o Keycloak e o Cadastro estão desligados
@@ -291,8 +288,7 @@ Cenário: ataque em massa
 | Keycloak · Esqueci minha senha | Botão desabilitado durante o envio | — | Login vazio: "Informe seu login ou e-mail." | "Se houver uma conta para esse login ou e-mail, você receberá as instruções em instantes." |
 | Keycloak · Atualizar senha (migrado fora da política) | Botão desabilitado durante o envio | — | Mensagem da política que falhou (ex.: "A senha precisa ter pelo menos 12 caracteres.") | Conclui o login |
 | Keycloak · Configurar OTP (admin) | Padrão do tema | — | "Código inválido. Confira o aplicativo autenticador." | Conclui o login |
-| Legado · Login (conta migrada) | Já existente | — | "Sua conta foi transferida para o novo sistema." + "Ir para o novo sistema" | — |
-| Legado · Cadastro | — | — | "O cadastro agora é feito no novo sistema." + "Criar conta no novo sistema" | — |
+| Legado · Login (conta migrada) | Já existente | — | "Sua conta foi transferida para o novo sistema. Levando você para lá em instantes…" + "Ir para o novo sistema" + "Ficar nesta página" (redireciona em 5 s) | — |
 
 **Microtextos** (PT-BR; no Cadastro via `$localize`, no Keycloak via `messages_pt_BR.properties`)
 
@@ -311,8 +307,7 @@ Cenário: ataque em massa
 | Checklist de senha | "Pelo menos 12 caracteres" · "Uma letra maiúscula" · "Uma letra minúscula" · "Um número" · "Um símbolo" · "Diferente do login e do e-mail" |
 | Sair | Botão "Sair"; depois: "Você saiu da sua conta." |
 | Sem permissão | "Você não tem permissão para acessar esta página." · "Voltar para meu perfil" |
-| Legado: conta migrada | "Sua conta foi transferida para o novo sistema." · "Ir para o novo sistema" |
-| Legado: cadastro fechado | "O cadastro agora é feito no novo sistema." · "Criar conta no novo sistema" |
+| Legado: conta migrada | "Sua conta foi transferida para o novo sistema. Levando você para lá em instantes…" · "Ir para o novo sistema" · "Ficar nesta página" |
 
 **Usabilidade e acessibilidade**
 
@@ -356,8 +351,8 @@ Cenário: erro de validação no cadastro
 | RN-05 | Qualquer resposta diferente de "válido" (senha errada, inexistente, bloqueado, já migrado, timeout de 2 s, erro HTTP, resposta inválida) resulta em "Usuário ou senha inválidos." e em um log com o identificador mascarado. Nada é criado no Keycloak. |
 | RN-06 | Reset de senha: usuário no Keycloak → fluxo padrão. Só no Legado → criado no Keycloak **sem senha** (RN-03 sem credencial) e recebe o link padrão de redefinição. Inexistente ou Legado indisponível → mesma tela de sucesso, nenhum e-mail e log. |
 | RN-07 | O Legado marca a conta como migrada (`MigratedAt`) **somente quando o usuário passa a ter senha no Keycloak** (login migrado ou reset concluído), e só depois que essa alteração é confirmada no Keycloak. A marcação é idempotente. |
-| RN-08 | Conta migrada no Legado: com a senha correta, o login é recusado com o aviso de migração; com a senha errada, a resposta é a genérica. A marcação invalida as sessões abertas no Legado. |
-| RN-09 | O autocadastro do Legado é desligado. O autocadastro do Cadastro recusa login ou e-mail que exista no Keycloak ou no Legado; se o Legado não responder, o cadastro não é criado (falha fechada). |
+| RN-08 | Conta migrada no Legado: com a senha correta, o login é recusado com o aviso de migração; com a senha errada, a resposta é a genérica. A marcação invalida as sessões abertas no Legado. Com o endereço do Cadastro configurado, a tela redireciona para ele em 5 s (com "Ficar nesta página" para cancelar). |
+| RN-09 | O autocadastro do Legado continua aberto (o Legado só muda no RN-08). O autocadastro do Cadastro recusa login ou e-mail que exista no Keycloak ou no Legado; se o Legado não responder, o cadastro não é criado (falha fechada). A migração é de mão única (Legado → Keycloak): nada criado no Cadastro/Keycloak é gravado ou reservado no Legado. O Keycloak é o mandatório: se alguém criar no Legado um login que já existe no Keycloak, vale o do Keycloak, e essa conta do Legado não migra (risco aceito). |
 | RN-10 | Identificador mascarado: até 3 primeiros caracteres (1 se o trecho tiver até 3) + `***`; para e-mail, + `@` + primeiro rótulo do domínio. `ana.souza@gmail.com` → `ana***@gmail`; `bruno.lima` → `bru***`; `al@x.com.br` → `a***@x`. O valor é normalizado (trim, minúsculas) antes da máscara. |
 | RN-11 | Nenhum log contém login, e-mail ou senha completos, token, IP ou sessão. Usuário existente aparece só pelo id técnico (Keycloak e/ou Legado). |
 | RN-12 | Usuário com a role `admin` precisa de OTP para concluir o login. |
