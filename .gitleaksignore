@@ -1,1 +1,4 @@
 # Falsos positivos do gitleaks (security.md): fingerprint + motivo em cada entrada.
+# Vetores de teste da pseudonimização (ADR-0003 do graylog, plan.md §2): chave HMAC FICTÍCIA e pública (bytes 00..1f) e token calculado com ela; nunca usada em ambiente algum (as chaves reais ficam no .env, gerado por script).
+2bb9ce006f665f1e703c5c01330aa2c9d2d77dab:cadastro-backend/tests/Cadastro.Api.IntegrationTests/Logging/PseudonymizationTests.cs:generic-api-key:20
+2bb9ce006f665f1e703c5c01330aa2c9d2d77dab:cadastro-backend/tests/Cadastro.Api.IntegrationTests/Logging/PseudonymizationTests.cs:generic-api-key:21
