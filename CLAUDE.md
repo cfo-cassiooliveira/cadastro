@@ -51,7 +51,7 @@ dotnet build Cadastro.slnx -warnaserror
 dotnet test --solution Cadastro.slnx
 dotnet format Cadastro.slnx --verify-no-changes
 cd cadastro-frontend && npm ci && npx ng test --watch=false && npx ng lint && npm run lint:styles && npx ng build
-./scripts/generate-env.sh && ./scripts/identity-network.sh # .env (segredo copiado do ../keycloak/.env) e rede compartilhada
+./scripts/generate-env.sh && ./scripts/identity-network.sh # .env (segredo do ../keycloak/.env, chave de log do ../legado/.env) e rede
 docker compose up -d --build                               # http://localhost:4300 (Keycloak de pé em ../keycloak)
 docker compose -f docker-compose.yml -f docker-compose.graylog.yml up -d --build # idem, com logs no ../graylog
 ./scripts/e2e.sh                                           # E2E (Playwright + axe, 3 dispositivos) com a stack de pé
@@ -77,9 +77,16 @@ docker compose -f docker-compose.yml -f docker-compose.graylog.yml up -d --build
   `Graylog:Host` configurado (`docker-compose.graylog.yml`), GELF TCP com cada propriedade como campo próprio e
   `service_name=cadastro-api`. Por isso a máscara por nome de campo do `../graylog` (ADR-0002, listas `LGPD_*` do
   `provisioning/provision.sh`) vale para os logs do Cadastro; nome fora dessa lista não tem máscara garantida.
-  **Pendente (C02 da spec 001 do `../graylog`):** pseudonimização na origem (`*_token`); até lá o valor chega em
-  claro ao Graylog e só a máscara do pipeline o protege. **Pendente (G02/C05):** `ClientSource` e `RequestPath` ainda
-  não estão em `LGPD_TEXT_FIELDS`, então o texto desses campos não é varrido pela máscara.
+  Esses campos são **pseudonimizados na origem** (ADR-0003 do `../graylog`): `PseudonymizationEnricher`
+  (`Cadastro.Api/Common`, último enricher) troca o valor pela máscara e soma `<Campo>_token` pela porta
+  `ILogPseudonymizer` (`Cadastro.Application/LogSearch`; HMAC em `Cadastro.Infrastructure/Logging/LogPseudonymizer.cs`,
+  mesmo algoritmo e mesma chave do `../legado`). Token aninhado vai como propriedade de topo (`Obj_Campo_token`), nunca
+  no texto. Chave em `Logging:Pseudonymization` (user-secrets/`.env` via `./scripts/generate-env.sh`), validada na
+  subida sem expor o valor. Cobertos por `Logging/PseudonymizationTests.cs` (vetores do plano) e
+  `Logging/PseudonymizedGelfTests.cs` (GELF TCP real). No Graylog, `ClientSource`, `RequestPath`,
+  `case_reference` e `http_path` estão em `LGPD_TEXT_FIELDS` (texto varrido pela máscara). **Pendente (C05):** na
+  origem, os client-logs ainda usam `***@***`/`***.***.***-**` em vez da máscara do ADR-0002 e o `ClientSource` sai
+  com query string/fragmento.
 - Serilog com `preserveStaticLogger: true`: nunca dependa do `Log.Logger` estático. Campos padrão e Graylog opcional
   cobertos por `tests/Cadastro.Api.IntegrationTests/Logging/` (os testes leem os eventos reais pelo sink
   `CollectingLogSink`; o `FakeLogCollector` recebe os mesmos eventos pelo `FakeLogCollectorSink`).

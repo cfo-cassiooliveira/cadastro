@@ -1,3 +1,4 @@
+using Cadastro.Infrastructure;
 using Serilog;
 using Serilog.Formatting.Compact;
 using Serilog.Sinks.Graylog;
@@ -10,10 +11,18 @@ namespace Cadastro.Api.Common;
 /// <para><b>Dados pessoais (LGPD)</b>: nenhum log contém dado pessoal (Constituição, Art. IV.6). Só um dado
 /// <b>aprovado em ADR</b> vai ao log, e apenas como campo estruturado do message template com o nome do tipo:
 /// <c>{Cpf}</c>, <c>{Cnpj}</c>, <c>{Phone}</c>/<c>{MobilePhone}</c>, <c>{UserName}</c> ou <c>{Email}</c>. Nunca
-/// concatenado, interpolado ou destruturado (<c>{@Obj}</c> vira <c>Obj_Campo</c>, que não é mascarado).</para>
-/// <para>O sink GELF envia cada propriedade como campo próprio, além do texto renderizado (<c>message</c> e
-/// <c>full_message</c>). O pipeline do Graylog reconhece o tipo pelo nome do campo, mascara o campo e troca o mesmo
-/// valor dentro do texto, sem adivinhar. Nome fora dessa lista não tem máscara garantida (ADR-0002 do projeto graylog).</para>
+/// concatenado ou interpolado; destruturado (<c>{@Obj}</c>) também é tratado, mas não entra na pesquisa padrão.</para>
+/// <para><b>Pseudonimização na origem</b> (ADR-0003 do projeto graylog): o <see cref="PseudonymizationEnricher"/>
+/// roda depois dos demais enrichers e antes dos sinks. Cada campo cujo nome está em
+/// <see cref="Cadastro.Application.LogSearch.PersonalDataFields"/> (as mesmas listas <c>LGPD_*</c> do graylog) vira a
+/// máscara do ADR-0002 (<c>***.456.789-**</c>, <c>12.3**.***/***1-90</c>, <c>11*****4321</c>, <c>mar***</c>,
+/// <c>ana***@gmail</c>) e ganha <c>&lt;Campo&gt;_token</c> (<c>k1-</c> + HMAC-SHA256 truncado, o mesmo do legado; e-mail
+/// e login geram o mesmo token), também dentro de objetos destruturados, dicionários e listas (token no topo, fora do
+/// texto: <c>Customer_Email_token</c>). Valor fora do formato, ou objeto/lista no lugar do valor, vira <c>***</c> sem
+/// token. O texto (<c>message</c>/<c>full_message</c>) é renderizado depois, a partir das propriedades já trocadas, e o
+/// texto já renderizado dos escopos (<c>Scope</c>) recebe a troca do valor pela máscara. <b>Não é tratado</b>: a
+/// exceção (por isso nunca deve conter dado pessoal) e nomes fora das listas; o pipeline do Graylog continua como rede
+/// de segurança.</para>
 /// </remarks>
 internal static class LoggingSetup
 {
@@ -25,8 +34,14 @@ internal static class LoggingSetup
     private const string MessageTemplateField = "message_template";
 
     /// <summary>Registra o Serilog com enriquecimento padrão (serviço, versão, ambiente, trace) e sinks configurados.</summary>
-    public static IServiceCollection AddCadastroLogging(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment) =>
-        services.AddSerilog((sp, logger) =>
+    public static IServiceCollection AddCadastroLogging(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment)
+    {
+        // Chaves validadas na subida: sem chave atual válida a API não sobe (fail fast), em vez de logar sem pseudonimizar.
+        services.AddLogPseudonymization(configuration);
+        // Tipo concreto, não ILogEventEnricher: o ReadFrom.Services o rodaria antes do LogContext e dos demais enrichers.
+        services.AddSingleton<PseudonymizationEnricher>();
+
+        return services.AddSerilog((sp, logger) =>
         {
             logger.ReadFrom.Configuration(configuration)
                 .ReadFrom.Services(sp)
@@ -35,6 +50,8 @@ internal static class LoggingSetup
                 .Enrich.WithProperty("service_name", ServiceName)
                 .Enrich.WithProperty("service_version", typeof(LoggingSetup).Assembly.GetName().Version?.ToString() ?? "unknown")
                 .Enrich.WithProperty("environment", environment.EnvironmentName)
+                // Por último: também trata as propriedades vindas do LogContext e dos enrichers acima.
+                .Enrich.With(sp.GetRequiredService<PseudonymizationEnricher>())
                 .WriteTo.Console(new CompactJsonFormatter());
 
             // Graylog é opcional: habilitado quando "Graylog:Host" está configurado (docker-compose.graylog.yml).
@@ -46,6 +63,7 @@ internal static class LoggingSetup
         // Não usa nem substitui o Log.Logger estático: cada host usa só a própria instância (sem estado global,
         // Art. III.3); um host descartado não silencia os demais (ex.: as fábricas dos testes de integração).
         preserveStaticLogger: true);
+    }
 
     /// <summary>
     /// Monta as opções do sink GELF a partir de <c>Graylog:*</c>; <c>null</c> quando o host não está configurado.

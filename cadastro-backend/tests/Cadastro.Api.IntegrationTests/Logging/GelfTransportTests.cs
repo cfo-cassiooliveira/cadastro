@@ -81,6 +81,8 @@ public sealed partial class GelfTransportTests
             {
                 ["Graylog:Host"] = "127.0.0.1",
                 ["Graylog:Port"] = port.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                ["Logging:Pseudonymization:CurrentKeyId"] = "k1",
+                ["Logging:Pseudonymization:Keys:k1"] = Infrastructure.CadastroApiFactory.PseudonymizationKey,
             })
             .Build();
         var environment = Substitute.For<IHostEnvironment>();
