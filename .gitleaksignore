@@ -2,3 +2,6 @@
 # Vetores de teste da pseudonimização (ADR-0003 do graylog, plan.md §2): chave HMAC FICTÍCIA e pública (bytes 00..1f) e token calculado com ela; nunca usada em ambiente algum (as chaves reais ficam no .env, gerado por script).
 2bb9ce006f665f1e703c5c01330aa2c9d2d77dab:cadastro-backend/tests/Cadastro.Api.IntegrationTests/Logging/PseudonymizationTests.cs:generic-api-key:20
 2bb9ce006f665f1e703c5c01330aa2c9d2d77dab:cadastro-backend/tests/Cadastro.Api.IntegrationTests/Logging/PseudonymizationTests.cs:generic-api-key:21
+# Vetores de teste da pseudonimização (ADR-0003 do graylog, plan.md §2): chave HMAC FICTÍCIA e pública (bytes 00..1f) e token calculado com ela; nunca usada em ambiente algum (as chaves reais ficam no .env, gerado por script).
+160ace2f64cd82b43a260ff2942ffdbc6e5fb6f3:cadastro-backend/tests/Cadastro.Api.IntegrationTests/LogSearch/LogSearchEndpointTests.cs:generic-api-key:26
+160ace2f64cd82b43a260ff2942ffdbc6e5fb6f3:cadastro-backend/tests/Cadastro.Api.IntegrationTests/LogSearch/LogSearchEndpointTests.cs:generic-api-key:27
