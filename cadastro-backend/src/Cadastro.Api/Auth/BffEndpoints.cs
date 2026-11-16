@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Http.HttpResults;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Options;
 
@@ -27,7 +28,7 @@ internal static partial class BffEndpoints
         return app;
     }
 
-    private static IResult Login(string? returnUrl, ILoggerFactory loggerFactory)
+    private static IResult Login(string? returnUrl, [FromQuery(Name = "acr_values")] string? acrValues, ILoggerFactory loggerFactory)
     {
         var target = string.IsNullOrEmpty(returnUrl) ? "/" : returnUrl;
         if (!LocalReturnUrl.IsLocal(target))
@@ -39,7 +40,22 @@ internal static partial class BffEndpoints
                 extensions: new Dictionary<string, object?> { ["code"] = "return_url.invalid" });
         }
 
-        return Results.Challenge(new AuthenticationProperties { RedirectUri = target }, [OpenIdConnectDefaults.AuthenticationScheme]);
+        // Step-up de OTP (pesquisa em logs): só "otp" é aceito; o BFF confere o acr recebido no callback.
+        if (acrValues is not null && acrValues != OtpStepUpRequirement.OtpAcr)
+        {
+            return Results.Problem(
+                statusCode: StatusCodes.Status400BadRequest,
+                title: "Only the otp step-up is supported.",
+                extensions: new Dictionary<string, object?> { ["code"] = "acr_values.invalid" });
+        }
+
+        var properties = new AuthenticationProperties { RedirectUri = target };
+        if (acrValues is not null)
+        {
+            properties.Items[BffAuthenticationSetup.StepUpItem] = acrValues;
+        }
+
+        return Results.Challenge(properties, [OpenIdConnectDefaults.AuthenticationScheme]);
     }
 
     // O token anti-CSRF vai no corpo (a SPA guarda em memória e manda no header); o cookie que o valida é HttpOnly.

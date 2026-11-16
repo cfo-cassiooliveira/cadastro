@@ -2,6 +2,7 @@ using Cadastro.Api.Auth;
 using Cadastro.Api.ClientLogs;
 using Cadastro.Api.Common;
 using Cadastro.Api.Health;
+using Cadastro.Api.LogSearch;
 using Cadastro.Api.Users;
 using Cadastro.Application;
 using Cadastro.Infrastructure;
@@ -61,6 +62,7 @@ if (app.Environment.IsDevelopment())
 app.MapCadastroHealthChecks();
 app.MapBffEndpoints();
 app.MapUserEndpoints();
+app.MapLogSearchEndpoints();
 app.MapClientLogEndpoints();
 
 await app.RunAsync();

@@ -68,7 +68,15 @@ docker compose -f docker-compose.yml -f docker-compose.graylog.yml up -d --build
   vem no corpo de `/bff/user` e fica só em memória (nenhum cookie legível por JavaScript),
   `FallbackPolicy` autenticada (health/OpenAPI/endpoints de entrada com `AllowAnonymous` comentado).
 - Tokens só com id, login e roles (client `cadastro` sem scopes `profile`/`email`); a sessão guarda só `sub`,
-  `preferred_username`, `sid` e roles. Cobertos por `tests/Cadastro.Api.IntegrationTests/Auth/`.
+  `preferred_username`, `sid`, `acr`, `auth_time` e roles. Cobertos por `tests/Cadastro.Api.IntegrationTests/Auth/`.
+- Pesquisa em logs (`POST /api/v1/log-search/queries`, `Cadastro.Api/LogSearch`): policy `logs:investigate` = role
+  `log-investigator` + `acr=otp` + `auth_time` <= 5 min (`OtpStepUpRequirement`; o BFF pede `/bff/login?acr_values=otp` e
+  confere o retorno), antiforgery, rate limit `log-search` (30/h por `sub`), 400 sem eco do valor. Auditoria: um log por
+  pesquisa com `audit_event`, `investigator_id` (o `sub`), `data_type`, `case_reference`, `trace_id` e `tokens` como
+  **texto único** separado por vírgula (nunca lista: `ParseArrayValues=true`), nunca o valor nem a máscara; o 403 loga
+  `log_search_access_denied` só com `investigator_id`. Esses nomes não podem entrar em `PersonalDataFields` (contrato com o
+  stream do `../graylog`). `LogSearchFields` deriva de `PersonalDataFields` (sem lista própria). Cobertos por
+  `tests/Cadastro.Api.IntegrationTests/LogSearch/` e `Auth/OtpStepUpTests.cs`.
 - `Bff:LocalSecureContext` só no compose local (http://localhost é contexto seguro para o navegador).
 - Log **sem dado pessoal** (Constituição, Art. IV.6). Só um dado **aprovado em ADR** vai ao log, e apenas como
   campo estruturado com o nome do tipo (`{Cpf}`, `{Cnpj}`, `{Phone}`/`{MobilePhone}`, `{UserName}`, `{Email}`) no

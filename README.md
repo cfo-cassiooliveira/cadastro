@@ -63,8 +63,29 @@ inválida ou ausente derruba a subida com mensagem que cita só o id, nunca o va
 O nginx (`cadastro-web`) envia o access log JSON pelo Docker GELF driver (UDP) para o stream `Cadastro - Web (nginx)`;
 a regra `20-nginx-json` do `../graylog` interpreta o JSON (`http_status`, `http_path`...) e alimenta o alerta
 `Cadastro - Erros 5xx no nginx`. Streams da API: `Cadastro - API`, `Cadastro - Erros`, `Cadastro - Navegador`,
-`Cadastro - Segurança` e `Cadastro - Pesquisa em logs (LGPD)` (o stream e o alerta já existem no graylog; o Cadastro só passa a alimentá-los na C03, com `audit_event=log_search_query_issued`/`log_search_access_denied` e tokens como texto único).
+`Cadastro - Segurança` e `Cadastro - Pesquisa em logs (LGPD)`, alimentado pela auditoria da pesquisa abaixo.
 Textos livres como `RequestPath` e `ClientSource` também passam pela máscara do pipeline (`LGPD_TEXT_FIELDS`).
+
+### Pesquisa em logs por token
+
+`POST /api/v1/log-search/queries` (o valor vai só no corpo, nunca em URL), corpo `{ "dataType": "cpf|cnpj|phone|email|login",
+"value": "...", "caseReference": "INC-1234" }` (`caseReference`: 3 a 40 caracteres `[A-Za-z0-9._/-]` com menos de 8 dígitos no total, para um CPF, CNPJ ou telefone digitado por engano não ir em claro à auditoria; `email` exige `@`, `login` aceita o que o canônico do login aceita). Resposta 200:
+`{ dataType, tokens: [{ keyId, token }], graylogQuery }`, com um token por chave configurada e a consulta
+`<campo>_token:("k1-…" OR "k2-…")` unida por `OR` sobre todos os nomes de campo do tipo (e-mail e login usam a mesma
+lista, derivada de `PersonalDataFields`). Erros em Problem Details: 400 com `errors` por campo (`dataType`, `value`,
+`caseReference`) só com códigos `log_search.*`, **sem eco do valor**; antiforgery inválido também 400; 401 sem sessão;
+403 sem a policy; 429 acima de 30 pesquisas por hora por `sub` (`RateLimiting:LogSearchPermitsPerHour`), registrado como `Warning` "Rate limit exceeded on {RequestPath} for user {UserId}" (sem `audit_event`: não faz parte do contrato do stream).
+
+- **Policy `logs:investigate`**: role `log-investigator` **e** `acr=otp` **e** `auth_time` de no máximo 5 minutos
+  (contrato do `../keycloak`: SSO e refresh trazem a role sem OTP). O BFF abre o step-up com
+  `GET /bff/login?returnUrl=...&acr_values=otp` (só `otp` é aceito; outro valor é 400) e, no retorno, recusa a sessão se o
+  token não vier com `acr=otp` e `auth_time` recente. A sessão guarda `acr` e `auth_time` (id técnico, não dado pessoal). O `ClaimActions` do OIDC mantém o `acr` (o padrão do ASP.NET o apagaria da identidade, `Auth/OidcClaimActionsTests`); `acr` e `auth_time` vêm sempre do mesmo token.
+- **Auditoria** (stream `Cadastro - Pesquisa em logs (LGPD)`): cada pesquisa atendida gera um log `Information` com os
+  campos `audit_event=log_search_query_issued`, `investigator_id` (o `sub`), `data_type`, `case_reference`, `trace_id` e
+  `tokens` como **texto único** separado por vírgula (uma lista viraria `tokens_0`, `tokens_1`... no sink GELF); nunca o
+  valor nem a máscara. O 403 gera um `Warning` com `audit_event=log_search_access_denied` e só `investigator_id` e
+  `trace_id` (sem `tokens`, `data_type` nem `case_reference`). Esses nomes ficam fora de `PersonalDataFields`.
+- A tela `/log-search` (C04) e o script `scripts/log-search-token.sh` (C06) ainda não existem.
 
 ## Health checks (rede interna)
 
