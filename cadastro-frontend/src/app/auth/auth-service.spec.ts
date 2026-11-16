@@ -96,4 +96,26 @@ describe('AuthService', () => {
     );
     expect(navigation.assign).not.toHaveBeenCalled();
   });
+
+  it('hasRole confere a role da sessão', async () => {
+    const loading = service.load();
+    http.expectOne('/bff/user').flush({
+      isAuthenticated: true,
+      userName: 'ana.souza',
+      roles: ['user', 'log-investigator'],
+      antiforgeryToken: 't',
+    });
+    await loading;
+
+    expect(service.hasRole('log-investigator')).toBe(true);
+    expect(service.hasRole('admin')).toBe(false);
+  });
+
+  it('requestOtpStepUp abre o login com acr_values=otp e volta para a tela', () => {
+    service.requestOtpStepUp('/log-search');
+
+    expect(navigation.assign).toHaveBeenCalledWith(
+      '/bff/login?acr_values=otp&returnUrl=%2Flog-search',
+    );
+  });
 });

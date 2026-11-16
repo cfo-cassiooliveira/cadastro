@@ -8,7 +8,7 @@ import {
   UrlTree,
 } from '@angular/router';
 import { AuthService } from './auth-service';
-import { authGuard, visitorGuard } from './auth.guard';
+import { authGuard, roleGuard, visitorGuard } from './auth.guard';
 
 describe('guards de sessão', () => {
   const isAuthenticated = signal(false);
@@ -50,5 +50,53 @@ describe('guards de sessão', () => {
 
   it('visitorGuard deixa o visitante ver o Início', () => {
     expect(TestBed.runInInjectionContext(() => visitorGuard(route, state))).toBe(true);
+  });
+});
+
+describe('roleGuard', () => {
+  const isAuthenticated = signal(false);
+  const hasRole = vi.fn();
+  const login = vi.fn();
+  const route = {} as ActivatedRouteSnapshot;
+  const state = { url: '/log-search' } as RouterStateSnapshot;
+
+  beforeEach(() => {
+    isAuthenticated.set(false);
+    hasRole.mockReset();
+    login.mockClear();
+    TestBed.configureTestingModule({
+      providers: [
+        provideRouter([]),
+        { provide: AuthService, useValue: { isAuthenticated, hasRole, login } },
+      ],
+    });
+  });
+
+  it('deixa passar quem tem a role', () => {
+    isAuthenticated.set(true);
+    hasRole.mockReturnValue(true);
+
+    expect(TestBed.runInInjectionContext(() => roleGuard('log-investigator')(route, state))).toBe(
+      true,
+    );
+    expect(hasRole).toHaveBeenCalledWith('log-investigator');
+  });
+
+  it('manda quem entrou sem a role para o acesso negado', () => {
+    isAuthenticated.set(true);
+    hasRole.mockReturnValue(false);
+
+    const result = TestBed.runInInjectionContext(() =>
+      roleGuard('log-investigator')(route, state),
+    ) as UrlTree;
+
+    expect(TestBed.inject(Router).serializeUrl(result)).toBe('/forbidden');
+  });
+
+  it('leva o visitante ao login e volta para a mesma página', () => {
+    expect(TestBed.runInInjectionContext(() => roleGuard('log-investigator')(route, state))).toBe(
+      false,
+    );
+    expect(login).toHaveBeenCalledWith('/log-search');
   });
 });

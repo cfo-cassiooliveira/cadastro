@@ -38,9 +38,22 @@ export class AuthService {
     }
   }
 
+  /** Se a sessão atual tem a role (a role sozinha não basta para ações que exigem OTP recente). */
+  hasRole(role: string): boolean {
+    return this.session().roles.includes(role);
+  }
+
   /** Vai para o login do Keycloak (pelo BFF) e volta para `returnUrl` depois. */
   login(returnUrl = '/'): void {
     this.navigation.assign(`/bff/login?returnUrl=${encodeURIComponent(returnUrl)}`);
+  }
+
+  /**
+   * Pede um novo login com OTP (step-up, `acr_values=otp`) e volta para `returnUrl`. O BFF só aceita `otp` e confere o
+   * `acr` e o `auth_time` no retorno; a API exige que o OTP tenha no máximo 5 minutos.
+   */
+  requestOtpStepUp(returnUrl: string): void {
+    this.navigation.assign(`/bff/login?acr_values=otp&returnUrl=${encodeURIComponent(returnUrl)}`);
   }
 
   /** Encerra a sessão no BFF e segue para o Keycloak encerrar o login (volta com "Você saiu da sua conta."). */

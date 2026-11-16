@@ -2,6 +2,7 @@ import {
   ChangeDetectionStrategy,
   Component,
   DestroyRef,
+  computed,
   inject,
   OnInit,
   signal,
@@ -10,7 +11,11 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs';
 import { AuthService } from './auth/auth-service';
-import { SESSION_EXPIRED_PARAM, SESSION_EXPIRED_VALUE } from './auth/auth.model';
+import {
+  LOG_INVESTIGATOR_ROLE,
+  SESSION_EXPIRED_PARAM,
+  SESSION_EXPIRED_VALUE,
+} from './auth/auth.model';
 import { BrowserNavigation } from './core/browser-navigation';
 
 /** Aviso exibido no topo ao voltar do Keycloak (logout, falha de login ou sessão expirada). */
@@ -35,6 +40,10 @@ export class App implements OnInit {
   private readonly router = inject(Router);
 
   protected readonly menuOpen = signal(false);
+  /** O item do menu só aparece para quem tem a role (a API e a rota conferem de novo). */
+  protected readonly canSearchLogs = computed(() =>
+    this.auth.user().roles.includes(LOG_INVESTIGATOR_ROLE),
+  );
   protected readonly notice = signal<ReturnNotice | null>(
     readReturnNotice(inject(BrowserNavigation).currentPath()),
   );

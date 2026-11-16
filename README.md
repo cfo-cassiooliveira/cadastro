@@ -64,7 +64,7 @@ O nginx (`cadastro-web`) envia o access log JSON pelo Docker GELF driver (UDP) p
 a regra `20-nginx-json` do `../graylog` interpreta o JSON (`http_status`, `http_path`...) e alimenta o alerta
 `Cadastro - Erros 5xx no nginx`. Streams da API: `Cadastro - API`, `Cadastro - Erros`, `Cadastro - Navegador`,
 `Cadastro - Segurança` e `Cadastro - Pesquisa em logs (LGPD)`, alimentado pela auditoria da pesquisa abaixo.
-Textos livres como `RequestPath` e `ClientSource` também passam pela máscara do pipeline (`LGPD_TEXT_FIELDS`).
+Textos livres como `RequestPath` e `ClientSource` também passam pela máscara do pipeline (`LGPD_TEXT_FIELDS`); os client-logs já saem da API mascarados (ADR-0002) e sem query string no `ClientSource`.
 
 ### Pesquisa em logs por token
 
@@ -85,7 +85,34 @@ lista, derivada de `PersonalDataFields`). Erros em Problem Details: 400 com `err
   `tokens` como **texto único** separado por vírgula (uma lista viraria `tokens_0`, `tokens_1`... no sink GELF); nunca o
   valor nem a máscara. O 403 gera um `Warning` com `audit_event=log_search_access_denied` e só `investigator_id` e
   `trace_id` (sem `tokens`, `data_type` nem `case_reference`). Esses nomes ficam fora de `PersonalDataFields`.
-- A tela `/log-search` (C04) e o script `scripts/log-search-token.sh` (C06) ainda não existem.
+- **Tela `/log-search` (Pesquisa em logs)**: rota protegida por `roleGuard('log-investigator')`; visitante vai ao login e
+  volta; quem entrou sem a role vai a `/forbidden`. O item do menu só aparece com a role. Formulário (tipo, valor,
+  referência do caso) com validação espelhando o backend e 4 estados: inicial, carregando, sucesso (consulta copiável,
+  chaves usadas, aviso de `*_token`) e erro (por campo, falha geral com "Tentar de novo", 429, step-up). Contrato de
+  segurança: `POST /api/v1/log-search/queries` com `X-XSRF-TOKEN` do `/bff/user`; 403 com a role = OTP ausente ou vencido,
+  e a tela mostra o aviso de step-up e oferece "Confirmar com código", que abre `/bff/login?acr_values=otp&returnUrl=%2Flog-search`;
+  ao voltar do Keycloak a tela abre vazia (o valor foi descartado antes de sair), e o usuário digita de novo. O valor pesquisado nunca vai para URL, `localStorage`,
+  `sessionStorage`, `AppLogger` ou console e é limpo da tela e do estado após o sucesso; os erros do servidor são lidos só
+  pelos códigos `log_search.*`. Cobertura: Vitest (`log-search/*.spec.ts`, `auth.guard.spec.ts`) e verificação
+  Playwright + axe nos 3 dispositivos.
+- **Script local `scripts/log-search-token.sh`** (só desenvolvimento: lê a chave do `.env`; em produção a pesquisa é
+  pela tela `/log-search`, com role, OTP e auditoria). Imprime o token de cada chave do `.env` (`k1`, `k2`...) e a
+  consulta do Graylog (OR de `<campo>_token:("tok1" OR "tok2")` sobre todos os nomes de campo do tipo):
+
+  ```bash
+  ./scripts/log-search-token.sh cpf                            # pede o valor sem eco (não vai ao histórico do shell)
+  printf '%s' "$VALOR" | ./scripts/log-search-token.sh phone   # ou pela entrada padrão
+  ./scripts/log-search-token.sh --self-test                    # reproduz os 5 vetores do plano com a chave fictícia
+  ```
+
+  Tipos: `cpf`, `cnpj`, `phone`, `email`, `login`. Passar o valor como 2º argumento funciona, mas o deixa no histórico
+  do shell e na lista de processos: evite com dado real. Recusa rodar sem `.env`, sem chave preenchida ou com valor
+  inválido pelo canônico do tipo. Exige locale `C.UTF-8` (o canônico de login/e-mail usa minúsculas Unicode, como o `ToLowerInvariant` do .NET; sem o locale o script para com mensagem clara). Aceita chave de 32 bytes ou mais, como o backend (acima de 64 bytes ela é trocada pelo SHA-256, RFC 2104). O `--self-test` cobre os 5 vetores, chaves de 48 e 80 bytes, canônico não-ASCII e as recusas (sem `.env`, CPF/CNPJ/telefone inválidos, e-mail sem `@`, login curto). Só `bash` e `openssl`: o HMAC-SHA256 é montado (RFC 2104) com `openssl dgst -sha256`
+  pela entrada padrão, para a chave nunca aparecer em linha de comando (`-macopt hexkey:` a exporia aos outros
+  processos) e nunca ser impressa. Para achar eventos do `../legado` a chave precisa ser a mesma:
+  `./scripts/generate-env.sh` copia a `k1` do `../legado/.env`; no sentido inverso, rode
+  `../legado/scripts/log-pseudonymization-key.sh` (copia a `k1` deste `.env` para o do legado e para o user-secrets do
+  `Legado.Api`).
 
 ## Health checks (rede interna)
 

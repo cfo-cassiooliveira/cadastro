@@ -34,6 +34,16 @@
           i18n
           >Meu perfil</a
         >
+        @if (canSearchLogs()) {
+          <a
+            class="nav__link"
+            routerLink="/log-search"
+            routerLinkActive="nav__link--active"
+            ariaCurrentWhenActive="page"
+            i18n
+            >Pesquisa em logs</a
+          >
+        }
         <span class="nav__user">
           <span class="visually-hidden" i18n>Conectado como </span>{{ auth.user().userName }}
         </span>

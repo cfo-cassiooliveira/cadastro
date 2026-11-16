@@ -1,5 +1,6 @@
 using System.Text.RegularExpressions;
 using Cadastro.Api.Common;
+using Cadastro.Application.LogSearch;
 
 namespace Cadastro.Api.ClientLogs;
 
@@ -15,8 +16,10 @@ internal static partial class ClientLogEndpoints
     private const int MaxMessageLength = 500;
     private const int MaxSourceLength = 100;
     private const int MaxStackLength = 4000;
-    private const string MaskedEmail = "***@***";
-    private const string MaskedCpf = "***.***.***-**";
+
+    // Folga além do limite ao cortar antes de mascarar: limita o trabalho das expressões sobre entrada de qualquer
+    // tamanho sem deixar sem reconhecimento um e-mail (até 254 caracteres) que cruze o limite.
+    private const int MaskingMargin = 256;
 
     /// <summary>Mapeia <c>POST /api/v1/client-logs</c>.</summary>
     public static IEndpointRouteBuilder MapClientLogEndpoints(this IEndpointRouteBuilder app)
@@ -33,7 +36,7 @@ internal static partial class ClientLogEndpoints
     }
 
     /// <summary>Valida o evento e o registra com o nível correspondente.</summary>
-    private static IResult Receive(ClientLogRequest request, ILoggerFactory loggerFactory)
+    private static IResult Receive(ClientLogRequest request, ILoggerFactory loggerFactory, ILogPseudonymizer pseudonymizer)
     {
         var errors = Validate(request);
         if (errors.Count > 0)
@@ -43,15 +46,15 @@ internal static partial class ClientLogEndpoints
 
         var logger = loggerFactory.CreateLogger(LoggerCategory);
         var clientEvent = request.Event!; // Validado acima.
-        var message = Sanitize(request.Message, MaxMessageLength);
-        var source = Sanitize(request.Source, MaxSourceLength);
+        var message = Sanitize(logger, pseudonymizer, request.Message, MaxMessageLength);
+        var source = Sanitize(logger, pseudonymizer, WithoutQueryAndFragment(request.Source), MaxSourceLength);
 
         // Campos extras do evento do navegador; log_source permite filtrar no Graylog.
         using (logger.BeginScope(new Dictionary<string, object?>
         {
             ["log_source"] = "browser",
             ["ClientStatus"] = request.Status,
-            ["ClientStack"] = Sanitize(request.Stack, MaxStackLength, keepNewLines: true),
+            ["ClientStack"] = Sanitize(logger, pseudonymizer, request.Stack, MaxStackLength, keepNewLines: true),
         }))
         {
             switch (request.Level)
@@ -93,21 +96,42 @@ internal static partial class ClientLogEndpoints
     }
 
     /// <summary>
-    /// Remove caracteres de controle (evita forjar linhas de log), limita o tamanho e mascara e-mail/CPF
-    /// (defesa em profundidade: o frontend não deve enviar dados pessoais).
+    /// Remove caracteres de controle (evita forjar linhas de log), troca e-mail, CNPJ, CPF e celular reconhecidos pelo
+    /// formato pela máscara do ADR-0002 (defesa em profundidade: o frontend não deve enviar dados pessoais) e limita o
+    /// tamanho.
     /// </summary>
-    private static string Sanitize(string? value, int maxLength, bool keepNewLines = false)
+    private static string Sanitize(ILogger logger, ILogPseudonymizer pseudonymizer, string? value, int maxLength, bool keepNewLines = false)
     {
         if (string.IsNullOrEmpty(value))
         {
             return string.Empty;
         }
 
-        var cleaned = (keepNewLines ? ControlExceptNewLine() : ControlCharacters()).Replace(value, " ");
-        cleaned = EmailPattern().Replace(cleaned, MaskedEmail);
-        cleaned = CpfPattern().Replace(cleaned, MaskedCpf);
-        return cleaned.Length <= maxLength ? cleaned : cleaned[..maxLength];
+        var bounded = Truncate(value, maxLength + MaskingMargin);
+        var cleaned = (keepNewLines ? ControlExceptNewLine() : ControlCharacters()).Replace(bounded, " ");
+        try
+        {
+            return Truncate(PersonalDataTextMasker.Mask(pseudonymizer, cleaned), maxLength);
+        }
+        catch (RegexMatchTimeoutException)
+        {
+            // Entrada hostil estourou o limite de tempo: o campo inteiro é descartado (nunca segue em claro) e o evento é registrado.
+            LogMaskingTimedOut(logger);
+            return PersonalDataTextMasker.Redacted;
+        }
     }
+
+    /// <summary>
+    /// Origem sem query string nem fragmento: se o navegador mandar uma URL, os parâmetros (filtros, valores
+    /// digitados) nunca chegam ao log.
+    /// </summary>
+    private static string? WithoutQueryAndFragment(string? source)
+    {
+        var end = source?.IndexOfAny(['?', '#']) ?? -1;
+        return source is null || end < 0 ? source : source[..end];
+    }
+
+    private static string Truncate(string value, int maxLength) => value.Length <= maxLength ? value : value[..maxLength];
 
     [GeneratedRegex("^[a-z][a-z0-9_]*(\\.[a-z0-9_]+){1,3}$")]
     private static partial Regex EventPattern();
@@ -118,11 +142,8 @@ internal static partial class ClientLogEndpoints
     [GeneratedRegex("[\\p{Cc}-[\\n]]")]
     private static partial Regex ControlExceptNewLine();
 
-    [GeneratedRegex("[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}")]
-    private static partial Regex EmailPattern();
-
-    [GeneratedRegex("\\b\\d{3}\\.?\\d{3}\\.?\\d{3}-?\\d{2}\\b")]
-    private static partial Regex CpfPattern();
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Browser log field replaced by redaction: personal data masking timed out")]
+    private static partial void LogMaskingTimedOut(ILogger logger);
 
     // Mesmo template nos três níveis: o nível vem do próprio evento (regra de log do workspace).
     [LoggerMessage(Level = LogLevel.Error, Message = "Browser {ClientEvent} at {ClientSource}: {ClientMessage}")]

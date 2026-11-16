@@ -78,6 +78,21 @@ describe('App (shell)', () => {
     expect(auth.logout).toHaveBeenCalledOnce();
   });
 
+  it.each([
+    [['user'], false],
+    [['user', 'log-investigator'], true],
+  ])('item Pesquisa em logs com as roles %j aparece: %s', async (roles, visible) => {
+    isAuthenticated.set(true);
+    user.set({ isAuthenticated: true, userName: 'ana.souza', roles, antiforgeryToken: 't' });
+    await render();
+
+    const link = element.querySelector('nav a[href="/log-search"]');
+    expect(link !== null).toBe(visible);
+    if (visible) {
+      expect(link?.textContent).toContain('Pesquisa em logs');
+    }
+  });
+
   it('o botão "Menu" abre e fecha o menu (aria-expanded)', async () => {
     isAuthenticated.set(true);
     await render();

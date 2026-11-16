@@ -76,7 +76,10 @@ docker compose -f docker-compose.yml -f docker-compose.graylog.yml up -d --build
   **texto único** separado por vírgula (nunca lista: `ParseArrayValues=true`), nunca o valor nem a máscara; o 403 loga
   `log_search_access_denied` só com `investigator_id`. Esses nomes não podem entrar em `PersonalDataFields` (contrato com o
   stream do `../graylog`). `LogSearchFields` deriva de `PersonalDataFields` (sem lista própria). Cobertos por
-  `tests/Cadastro.Api.IntegrationTests/LogSearch/` e `Auth/OtpStepUpTests.cs`.
+  `tests/Cadastro.Api.IntegrationTests/LogSearch/` e `Auth/OtpStepUpTests.cs`. A tela `/log-search` (frontend:
+  `app/log-search/`, guard `roleGuard`, `/forbidden` para quem não tem a role) oferece o botão "Confirmar com código" que abre
+  `/bff/login?acr_values=otp&returnUrl=%2Flog-search` quando o 403 indica OTP ausente ou vencido; ao confirmar o OTP, o
+  formulário volta vazio (o valor é descartado antes de sair da tela); o valor pesquisado nunca vai para URL, storage, `AppLogger` nem console (README).
 - `Bff:LocalSecureContext` só no compose local (http://localhost é contexto seguro para o navegador).
 - Log **sem dado pessoal** (Constituição, Art. IV.6). Só um dado **aprovado em ADR** vai ao log, e apenas como
   campo estruturado com o nome do tipo (`{Cpf}`, `{Cnpj}`, `{Phone}`/`{MobilePhone}`, `{UserName}`, `{Email}`) no
@@ -92,9 +95,13 @@ docker compose -f docker-compose.yml -f docker-compose.graylog.yml up -d --build
   no texto. Chave em `Logging:Pseudonymization` (user-secrets/`.env` via `./scripts/generate-env.sh`), validada na
   subida sem expor o valor. Cobertos por `Logging/PseudonymizationTests.cs` (vetores do plano) e
   `Logging/PseudonymizedGelfTests.cs` (GELF TCP real). No Graylog, `ClientSource`, `RequestPath`,
-  `case_reference` e `http_path` estão em `LGPD_TEXT_FIELDS` (texto varrido pela máscara). **Pendente (C05):** na
-  origem, os client-logs ainda usam `***@***`/`***.***.***-**` em vez da máscara do ADR-0002 e o `ClientSource` sai
-  com query string/fragmento.
+  `case_reference` e `http_path` estão em `LGPD_TEXT_FIELDS` (texto varrido pela máscara). Os client-logs
+  (`POST /api/v1/client-logs`, `ClientLogs/`) também são mascarados na origem: `ClientMessage`, `ClientSource` e
+  `ClientStack` passam por `PersonalDataTextMasker` (e-mail inclusive `%40`, CNPJ, CPF e celular com DDD, mesmos padrões
+  do `lgpd-text.rule.tmpl` do `../graylog`) usando a máscara do ADR-0002 via `ILogPseudonymizer` (sem token em texto
+  livre); trecho fora do formato vira `***`, estouro de tempo da regex (100 ms) troca o campo por `***` com Warning sem o
+  texto, e o `ClientSource` perde query string e fragmento. Cobertos por `Logging/ClientLogEndpointTests.cs` e
+  `Logging/PersonalDataTextMaskerTests.cs`.
 - Serilog com `preserveStaticLogger: true`: nunca dependa do `Log.Logger` estático. Campos padrão e Graylog opcional
   cobertos por `tests/Cadastro.Api.IntegrationTests/Logging/` (os testes leem os eventos reais pelo sink
   `CollectingLogSink`; o `FakeLogCollector` recebe os mesmos eventos pelo `FakeLogCollectorSink`).

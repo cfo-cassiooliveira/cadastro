@@ -1,0 +1,19 @@
+.forbidden {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-4);
+  max-width: 44rem;
+}
+
+.forbidden__title {
+  margin: 0;
+  font-size: clamp(1.75rem, 1.5rem + 1vw, 2.25rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ws-indigo);
+}
+
+.forbidden__text {
+  margin: 0;
+  font-size: 1.125rem;
+}

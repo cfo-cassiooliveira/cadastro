@@ -15,3 +15,6 @@ export interface LogoutResponse {
 /** Marca na URL de volta do login: a tela mostra "Sua sessão expirou. Entre novamente.". */
 export const SESSION_EXPIRED_PARAM = 'session';
 export const SESSION_EXPIRED_VALUE = 'expired';
+
+/** Role que libera a pesquisa em logs (o BFF ainda exige OTP recente: ver `AuthService.requestOtpStepUp`). */
+export const LOG_INVESTIGATOR_ROLE = 'log-investigator';
