@@ -1,0 +1,33 @@
+# Integração opcional com o Graylog (projeto C:\Workspace\graylog), mesmo padrão do Legado. Requer o Graylog de pé antes.
+# Uso:
+#   docker compose -f docker-compose.yml -f docker-compose.graylog.yml up -d --build
+#
+# - api: Serilog envia GELF por TCP para graylog:12201 pela rede Docker compartilhada "observability"
+#   (service_name=cadastro-api → stream "Cadastro - API").
+# - web: stdout do nginx (access log JSON) vai pelo Docker logging driver GELF (UDP) para a porta publicada do Graylog.
+#   Use 127.0.0.1 (não "localhost"): o daemon resolve localhost para ::1 (IPv6) e a porta é publicada só em IPv4.
+#   A "tag" vira o campo service_name no pipeline do Graylog (stream "Cadastro - Web (nginx)"). Pendente (G02 do
+#   ../graylog): o JSON do cadastro-web ainda não é interpretado (regra 20-nginx-json só trata legado-web), então
+#   http_status e o alerta de 5xx do nginx ainda não valem para o Cadastro.
+services:
+  api:
+    environment:
+      Graylog__Host: graylog
+      Graylog__Port: "12201"
+      Graylog__Transport: Tcp
+    networks:
+      - default
+      - identity
+      - observability
+
+  web:
+    logging:
+      driver: gelf
+      options:
+        gelf-address: "udp://127.0.0.1:12201"
+        tag: cadastro-web
+
+networks:
+  observability:
+    # Criada pelo docker-compose do projeto graylog.
+    external: true

@@ -53,6 +53,7 @@ dotnet format Cadastro.slnx --verify-no-changes
 cd cadastro-frontend && npm ci && npx ng test --watch=false && npx ng lint && npm run lint:styles && npx ng build
 ./scripts/generate-env.sh && ./scripts/identity-network.sh # .env (segredo copiado do ../keycloak/.env) e rede compartilhada
 docker compose up -d --build                               # http://localhost:4300 (Keycloak de pé em ../keycloak)
+docker compose -f docker-compose.yml -f docker-compose.graylog.yml up -d --build # idem, com logs no ../graylog
 ./scripts/e2e.sh                                           # E2E (Playwright + axe, 3 dispositivos) com a stack de pé
 ./scripts/sonar-analysis.sh                                # SonarQube local (../sonarqube) + Quality Gate
 ```
@@ -69,11 +70,19 @@ docker compose up -d --build                               # http://localhost:43
 - Tokens só com id, login e roles (client `cadastro` sem scopes `profile`/`email`); a sessão guarda só `sub`,
   `preferred_username`, `sid` e roles. Cobertos por `tests/Cadastro.Api.IntegrationTests/Auth/`.
 - `Bff:LocalSecureContext` só no compose local (http://localhost é contexto seguro para o navegador).
-- **Dado pessoal em log, quando inevitável, só como campo estruturado** com o nome do tipo: `{Cpf}`, `{Cnpj}`,
-  `{Phone}`/`{MobilePhone}`, `{UserName}`, `{Email}` no message template (`[LoggerMessage]`), **nunca**
-  concatenado ou interpolado no texto. O Graylog mascara pelo nome do campo e troca o mesmo valor dentro do texto,
-  sem adivinhar o tipo (ADR-0002 do `../graylog`). Nome fora dessa lista não tem máscara garantida: nome novo entra
-  antes nas listas `LGPD_*` do `../graylog/provisioning/provision.sh`.
+- Log **sem dado pessoal** (Constituição, Art. IV.6). Só um dado **aprovado em ADR** vai ao log, e apenas como
+  campo estruturado com o nome do tipo (`{Cpf}`, `{Cnpj}`, `{Phone}`/`{MobilePhone}`, `{UserName}`, `{Email}`) no
+  message template (`[LoggerMessage]`), **nunca** concatenado, interpolado ou destruturado.
+  O Cadastro usa Serilog (`Cadastro.Api/Common/LoggingSetup.cs`, mesmo padrão do Legado): JSON no console e, com
+  `Graylog:Host` configurado (`docker-compose.graylog.yml`), GELF TCP com cada propriedade como campo próprio e
+  `service_name=cadastro-api`. Por isso a máscara por nome de campo do `../graylog` (ADR-0002, listas `LGPD_*` do
+  `provisioning/provision.sh`) vale para os logs do Cadastro; nome fora dessa lista não tem máscara garantida.
+  **Pendente (C02 da spec 001 do `../graylog`):** pseudonimização na origem (`*_token`); até lá o valor chega em
+  claro ao Graylog e só a máscara do pipeline o protege. **Pendente (G02/C05):** `ClientSource` e `RequestPath` ainda
+  não estão em `LGPD_TEXT_FIELDS`, então o texto desses campos não é varrido pela máscara.
+- Serilog com `preserveStaticLogger: true`: nunca dependa do `Log.Logger` estático. Campos padrão e Graylog opcional
+  cobertos por `tests/Cadastro.Api.IntegrationTests/Logging/` (os testes leem os eventos reais pelo sink
+  `CollectingLogSink`; o `FakeLogCollector` recebe os mesmos eventos pelo `FakeLogCollectorSink`).
 
 ## Decisões e particularidades
 

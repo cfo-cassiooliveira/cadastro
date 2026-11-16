@@ -12,6 +12,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Não revela o servidor/versão no header "Server" (OWASP A02).
 builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 
+builder.Services.AddCadastroLogging(builder.Configuration, builder.Environment);
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddOpenApi();

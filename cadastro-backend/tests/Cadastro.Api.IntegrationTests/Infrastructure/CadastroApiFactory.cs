@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
+using Serilog.Core;
 
 namespace Cadastro.Api.IntegrationTests.Infrastructure;
 
@@ -24,6 +25,9 @@ public class CadastroApiFactory : WebApplicationFactory<Program>
     /// <summary>Logs emitidos pela API durante os testes.</summary>
     public FakeLogCollector Logs => Services.GetRequiredService<FakeLogCollector>();
 
+    /// <summary>Eventos do Serilog com todas as propriedades (as mesmas que o sink GELF envia ao Graylog).</summary>
+    public CollectingLogSink SerilogEvents { get; } = new();
+
     /// <inheritdoc />
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
@@ -38,7 +42,13 @@ public class CadastroApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("KeycloakAdmin:ClientId", "cadastro");
         builder.UseSetting("KeycloakAdmin:ClientSecret", TestClientSecret);
         builder.ConfigureLogging(logging => logging.AddFakeLogging());
-        builder.ConfigureTestServices(ConfigureKeycloakProbe);
+        builder.ConfigureTestServices(services =>
+        {
+            // O Serilog lê sinks do DI (ReadFrom.Services): os testes inspecionam os eventos reais.
+            services.AddSingleton<ILogEventSink>(SerilogEvents);
+            services.AddSingleton<ILogEventSink>(sp => new FakeLogCollectorSink(sp.GetRequiredService<FakeLogCollector>()));
+            ConfigureKeycloakProbe(services);
+        });
     }
 
     /// <summary>Sem Keycloak de verdade, a sonda de readiness responde 200.</summary>
