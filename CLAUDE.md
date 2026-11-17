@@ -83,7 +83,7 @@ docker compose -f docker-compose.yml -f docker-compose.graylog.yml up -d --build
 - `Bff:LocalSecureContext` só no compose local (http://localhost é contexto seguro para o navegador).
 - Log **sem dado pessoal** (Constituição, Art. IV.6). Só um dado **aprovado em ADR** vai ao log, e apenas como
   campo estruturado com o nome do tipo (`{Cpf}`, `{Cnpj}`, `{Phone}`/`{MobilePhone}`, `{UserName}`, `{Email}`) no
-  message template (`[LoggerMessage]`), **nunca** concatenado, interpolado ou destruturado.
+  message template (`[LoggerMessage]`), **nunca** concatenado ou interpolado. Objeto destruturado (`{@Obj}`), dicionário e lista são tratados (máscara no próprio nível e token de topo `Obj_Campo_token`), mas dado pessoal não deve ir em log.
   O Cadastro usa Serilog (`Cadastro.Api/Common/LoggingSetup.cs`, mesmo padrão do Legado): JSON no console e, com
   `Graylog:Host` configurado (`docker-compose.graylog.yml`), GELF TCP com cada propriedade como campo próprio e
   `service_name=cadastro-api`. Por isso a máscara por nome de campo do `../graylog` (ADR-0002, listas `LGPD_*` do

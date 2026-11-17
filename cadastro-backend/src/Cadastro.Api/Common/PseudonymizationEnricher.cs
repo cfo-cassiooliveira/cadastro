@@ -20,7 +20,7 @@ namespace Cadastro.Api.Common;
 /// <para><b>Textos</b>: <c>message</c>/<c>full_message</c> são renderizados depois, a partir das propriedades já
 /// trocadas. O texto do escopo (<c>Scope</c>, já renderizado pelo provider do Microsoft.Extensions.Logging com o valor
 /// em claro) recebe a troca do valor original pela máscara (ou por <c>***</c> quando CPF/CNPJ/telefone está fora do
-/// formato com 8+ dígitos; login curto não é trocado, para não corromper palavras). A exceção não é alterada.</para>
+/// formato com 8+ dígitos; login ou e-mail curto ou inválido, de qualquer tamanho, não é trocado, para não corromper palavras). A exceção não é alterada.</para>
 /// </remarks>
 internal sealed class PseudonymizationEnricher(ILogPseudonymizer pseudonymizer) : ILogEventEnricher
 {

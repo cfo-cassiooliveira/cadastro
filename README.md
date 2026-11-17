@@ -43,8 +43,7 @@ que acha todos os eventos do titular nos dois sistemas com igualdade exata (e-ma
 também dentro de objetos destruturados, dicionários e listas: o campo mascarado é gravado no Graylog como
 `Customer_Email` e o token vai no topo do evento como `Customer_Email_token` (nunca dentro do objeto, para não aparecer
 no texto). O texto (`message`/`full_message`) sai só com a máscara; valor fora do formato vira `***`, sem token. No
-texto dos escopos (`Scope`), o valor é trocado pela máscara ou por `***`, exceto o curto (login fora do formato, com menos de 4
-caracteres; CPF/CNPJ/telefone fora do formato com menos de 8 dígitos no valor, contando só dígitos), por isso dado pessoal nunca vai em template de escopo. Coberto
+texto dos escopos (`Scope`), só valores com máscara válida são trocados pela máscara, e CPF/CNPJ/telefone fora do formato com 8 ou mais dígitos (só dígitos contados) viram `***`; login/e-mail curto ou inválido (ex.: `@gmail.com`) não é trocado, de qualquer tamanho. Por isso dado pessoal nunca vai em template de escopo. Coberto
 por `tests/Cadastro.Api.IntegrationTests/Logging/PseudonymizationTests.cs` (vetores do plano, iguais aos do legado) e
 `PseudonymizedGelfTests.cs` (servidor GELF TCP falso: nenhum campo ou texto com valor em claro, nenhum token no texto).
 **Não é tratado na origem**: a exceção (mensagem e stack trace seguem como estão, por isso nunca devem conter dado
