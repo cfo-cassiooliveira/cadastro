@@ -1,6 +1,12 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { ActivatedRouteSnapshot, provideRouter, Router, RouterStateSnapshot, UrlTree } from '@angular/router';
+import {
+  ActivatedRouteSnapshot,
+  provideRouter,
+  Router,
+  RouterStateSnapshot,
+  UrlTree,
+} from '@angular/router';
 import { AuthService } from '../auth/auth-service';
 import { logSearchGuard } from './log-search.guard';
 import { LogSearchService } from './log-search.service';
@@ -27,7 +33,8 @@ describe('logSearchGuard', () => {
     });
   });
 
-  const run = () => TestBed.runInInjectionContext(() => logSearchGuard('log-investigator')(route, state));
+  const run = () =>
+    TestBed.runInInjectionContext(() => logSearchGuard('log-investigator')(route, state));
 
   it('sem a role registra o acesso negado e vai a /forbidden', () => {
     hasRole.mockReturnValue(false);

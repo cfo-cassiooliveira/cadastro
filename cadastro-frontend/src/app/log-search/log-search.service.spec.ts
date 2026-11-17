@@ -8,7 +8,9 @@ describe('LogSearchService.reportAccessDenied', () => {
   let service: LogSearchService;
 
   beforeEach(() => {
-    TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting()],
+    });
     backend = TestBed.inject(HttpTestingController);
     service = TestBed.inject(LogSearchService);
   });
