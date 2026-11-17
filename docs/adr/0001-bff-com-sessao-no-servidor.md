@@ -1,9 +1,11 @@
 # ADR-0001: BFF com sessão no servidor (em memória)
 
-- **Status**: Proposto
+- **Status**: Aceito (2026-11-17)
 - **Data**: 2026-11-13
 - **Decisores**: Cassio Oliveira (responsável técnico)
 - **Artigos da Constituição relacionados**: Art. II.1, Art. IV.2
+- **Nota do aceite (2026-11-17)**: implementado e testado em `Cadastro.Api/Auth/` (login, callback, logout, `/bff/user`,
+  sessão em memória, refresh, antiforgery, cookie `__Host-cadastro`) com integração contra o Keycloak real (T06).
 
 ## Contexto
 

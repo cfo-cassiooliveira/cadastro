@@ -30,6 +30,17 @@
   client `cadastro`.
 - Chamadas ao Legado só por HTTPS (CA do Legado) com assinatura HMAC (ADR-0005 do legado).
 - Testes .NET: xUnit v3 no **Microsoft.Testing.Platform** (`global.json`), Shouldly, NSubstitute.
+- Stack completa (ordem no README, "Como subir a stack completa"): `identity-network.sh` → Graylog (opcional) → `../legado`
+  com `-f docker-compose.yml -f docker-compose.identity.yml` após `internal-credentials.sh` → `../keycloak` (sempre com
+  `-f docker-compose.graylog.yml` se o Graylog estiver no ar; `KC_LEGADO_SIGNING_KEY` copiada de
+  `LEGADO_INTERNAL_KEYCLOAK_KEY` do `../legado/.env`, sem exibir) → Cadastro. O Legado nunca depende do Keycloak nem do
+  Cadastro.
+- **Nunca** rode `./scripts/e2e.sh` enquanto o provisioner ou o smoke do `../keycloak` estiver rodando, nem dois ao
+  mesmo tempo: houve falha intermitente `Parent flow doesn't exist`/JSON inválido com execuções concorrentes (causa não comprovada).
+- E2E de migração (`e2e/tests/migration.spec.js`, `zz-logs-lgpd.spec.js`; `e2e/README.md`): contas descartáveis `e2e.*` no
+  Legado (que não tem exclusão), usuários migrados apagados do Keycloak no fim de cada teste, nenhum e-mail completo no
+  Graylog (a conferência `zz-` roda por último). Escopo da DEV-005 sem T21/T22: cenários de Legado fora do ar e admin
+  migrado configurando OTP ficam nos ITs do `../keycloak` (`LegacyLoginIT`).
 - Health checks: `/health/live`, `/health/ready` e `/health`, só na rede interna.
 - Testes de arquitetura carregam cada camada pelo primeiro tipo dela: o Smart App Control do Windows bloqueia
   DLL sem tipos.
@@ -40,7 +51,7 @@
 cadastro-backend/src/    Cadastro.Domain, .Application, .Infrastructure, .Api (BFF)
 cadastro-backend/tests/  Api.IntegrationTests, ArchitectureTests (+ Domain.Tests e Application.Tests com o 1º tipo)
 cadastro-frontend/       Angular 22 + nginx
-docs/adr/                ADR-0001 (BFF), ADR-0002 (dados no Keycloak)
+docs/adr/                ADR-0001 (BFF, aceito), ADR-0002 (dados no Keycloak, aceito)
 docs/specs/              Spec 001 (migração para o Keycloak)
 ```
 

@@ -330,8 +330,8 @@ login/logout BFF (Information), 401/403 (Warning). Mesmos testes de log do Legad
 
 ## 9. Decisões (ADRs)
 
-- **keycloak ADR-0006**: Migração sob demanda do Legado por Authenticator + API do Legado — Proposto
-- **keycloak ADR-0007**: Identificador mascarado nos eventos de migração (exceção ao ADR-0002) — Proposto
-- **legado ADR-0005**: API interna de migração (TLS + HMAC emitidos pelo Legado), marcação, login de conta migrada e independência do Legado — Proposto
-- **cadastro ADR-0001**: BFF com sessão no servidor (em memória) — Proposto
-- **cadastro ADR-0002**: Dados do usuário no User Profile do Keycloak, sem banco próprio — Proposto
+- **keycloak ADR-0006**: Migração sob demanda do Legado por Authenticator + API do Legado — Aceito (2026-11-17)
+- **keycloak ADR-0007**: Identificador mascarado nos eventos de migração (exceção ao ADR-0002) — Aceito (2026-11-17)
+- **legado ADR-0005**: API interna de migração (TLS + HMAC emitidos pelo Legado), marcação, login de conta migrada e independência do Legado — Aceito (2026-11-17)
+- **cadastro ADR-0001**: BFF com sessão no servidor (em memória) — Aceito (2026-11-17)
+- **cadastro ADR-0002**: Dados do usuário no User Profile do Keycloak, sem banco próprio — Aceito (2026-11-17)
