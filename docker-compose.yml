@@ -8,6 +8,8 @@ services:
     build:
       context: .
       dockerfile: cadastro-backend/Dockerfile
+    # Teto de memória: um serviço não derruba os demais na VM do WSL2 (20 GB, ver ~/.wslconfig).
+    mem_limit: 512m
     environment:
       ASPNETCORE_ENVIRONMENT: ${API_ENVIRONMENT:-Production}
       # Discovery e tokens pela rede interna (keycloak:8080); o issuer continua o do navegador (localhost:8180).
@@ -45,6 +47,8 @@ services:
   web:
     build:
       context: cadastro-frontend
+    # Teto de memória: um serviço não derruba os demais na VM do WSL2 (20 GB, ver ~/.wslconfig).
+    mem_limit: 128m
     # Só na máquina local: a aplicação mostra dados pessoais e não deve ficar exposta na rede.
     ports:
       - "127.0.0.1:4300:8080"
