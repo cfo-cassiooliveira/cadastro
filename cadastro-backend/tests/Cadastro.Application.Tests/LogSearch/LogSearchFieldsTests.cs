@@ -14,6 +14,10 @@ public sealed class LogSearchFieldsTests
         [PersonalDataKind.Login] = ["username", "user_name", "UserName", "Username", "login", "Login", "preferred_username", "email", "Email"],
     };
 
+    // Campos que o graylog mascara, mas que NÃO têm "_token": o Keycloak não gera token nem recebe a chave HMAC
+    // (ADR-0003 do graylog e ADR-0007 do keycloak). Não existe pesquisa por token para eles, então ficam fora da lista.
+    private static readonly HashSet<string> MaskOnlyFields = new(StringComparer.Ordinal) { "masked_login" };
+
     [Theory]
     [InlineData(PersonalDataKind.Cpf)]
     [InlineData(PersonalDataKind.Cnpj)]
@@ -43,7 +47,9 @@ public sealed class LogSearchFieldsTests
         })
         {
             var line = lines.Single(l => l.StartsWith(expected + "=(", StringComparison.Ordinal));
-            var names = line[(line.IndexOf('(', StringComparison.Ordinal) + 1)..line.LastIndexOf(')')].Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var names = line[(line.IndexOf('(', StringComparison.Ordinal) + 1)..line.LastIndexOf(')')]
+                .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+                .Where(name => !MaskOnlyFields.Contains(name));
             LogSearchFields.For(kind).ShouldBe(names, ignoreOrder: true);
         }
     }

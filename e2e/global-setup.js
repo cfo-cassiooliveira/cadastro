@@ -3,8 +3,8 @@
 // tratado como contexto seguro em HTTP (cookies __Host-) e é o hostname do Keycloak (issuer e cookies do login).
 const net = require("node:net");
 
-// 4300: Cadastro (nginx). 8180: Keycloak (tela de login).
-const FORWARDED_PORTS = [4300, 8180];
+// 4300: Cadastro (nginx). 8180: Keycloak (login e Admin API). 4200: Legado (web e API). 8025: Mailpit. 9000: Graylog.
+const FORWARDED_PORTS = [4300, 8180, 4200, 8025, 9000];
 
 module.exports = async () => {
   const targetHost = process.env.E2E_FORWARD_HOST;

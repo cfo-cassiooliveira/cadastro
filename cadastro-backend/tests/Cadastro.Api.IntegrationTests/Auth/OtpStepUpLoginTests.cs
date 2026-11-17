@@ -42,7 +42,7 @@ public sealed class OtpStepUpLoginTests(KeycloakApiFactory factory)
     [Fact]
     public async Task Login_WithoutAcrValues_DoesNotAskForStepUp()
     {
-        string? sent = "unset";
+        var sent = (string?)"unset";
         await using var host = factory.WithWebHostBuilder(builder => builder.ConfigureTestServices(services =>
             services.PostConfigure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, options =>
             {
