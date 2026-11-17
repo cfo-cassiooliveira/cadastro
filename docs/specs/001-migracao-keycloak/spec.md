@@ -1,6 +1,6 @@
 # Spec 001 — Cadastro com Keycloak e migração sob demanda do Legado
 
-- **Status**: Em revisão
+- **Status**: Em implementação (DEV-005; ADRs aceitos em 2026-11-17; T18 a T23 pendentes)
 - **Data**: 2026-11-13 · **Autor**: Cassio Oliveira
 - **Projeto/Bounded context**: `cadastro` (novo) · `keycloak` (Identity) · `legado` (Users legado)
 

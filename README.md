@@ -23,6 +23,47 @@ dotnet build Cadastro.slnx -warnaserror
 dotnet test --solution Cadastro.slnx
 ```
 
+## Como subir a stack completa
+
+Pré-requisito: Docker. O Cadastro precisa do Keycloak de pé; a migração precisa também do Legado com a API interna.
+Veja a ordem detalhada no README do [`keycloak`](../keycloak) (seção "Migração dos usuários do Legado"). Resumo:
+
+```bash
+./scripts/identity-network.sh                  # rede workspace-identity (idempotente; igual nos 3 projetos)
+# Graylog (opcional): cd ../graylog && ./scripts/generate-env.sh && docker compose up -d --build
+# Legado: cd ../legado && ./scripts/internal-credentials.sh
+#         docker compose -f docker-compose.yml -f docker-compose.identity.yml [-f docker-compose.graylog.yml] up -d --build
+# Keycloak: cd ../keycloak && ./scripts/generate-env.sh, copie LEGADO_INTERNAL_KEYCLOAK_KEY (.env do legado) para
+#         KC_LEGADO_SIGNING_KEY (.env do keycloak) sem exibir o valor e suba com
+#         docker compose -f docker-compose.yml -f docker-compose.graylog.yml up -d --build   (sem Graylog: só o primeiro -f)
+./scripts/generate-env.sh                      # .env: KC_CADASTRO_CLIENT_SECRET (do ../keycloak/.env) e chave de log
+docker compose up -d --build                   # com o Graylog: -f docker-compose.yml -f docker-compose.graylog.yml
+```
+
+| Endereço | Uso |
+|---|---|
+| http://localhost:4300 | Cadastro (nginx; login em `/bff/login`) |
+| http://localhost:8180 | Keycloak (Admin Console e login) |
+| http://localhost:4200 | Legado |
+| http://127.0.0.1:8025 | Mailpit (e-mails de reset de senha do Keycloak) |
+| http://localhost:9000 | Graylog |
+
+Hoje o Cadastro entrega login, migração do Legado, reset de senha e "Meu perfil" (e a pesquisa em logs). As telas
+"Criar conta" e "Usuários" (T21/T22) e o autocadastro (T19) **não** fazem parte da DEV-005.
+
+### Testes de ponta a ponta
+
+```bash
+./scripts/e2e.sh                         # Playwright + axe nos 3 dispositivos; exige a stack acima de pé
+./scripts/e2e.sh --project=desktop migration.spec   # só um dispositivo/arquivo
+```
+
+O script lê `KC_AUTOMATION_CLIENT_SECRET` (`../keycloak/.env`) e `GRAYLOG_ROOT_PASSWORD` (`../graylog/.env`) sem
+imprimir e aceita `E2E_LEGADO_URL`, `E2E_KEYCLOAK_URL`, `E2E_MAILPIT_URL`, `E2E_GRAYLOG_URL` e `LEGADO_API_CONTAINER`
+(padrão `legado-api-1`). Detalhes e escopo em [`e2e/README.md`](e2e/README.md). **Limitação conhecida**: não rode o E2E
+enquanto um provisioner ou smoke do `../keycloak` estiver em execução (falha intermitente `Parent flow doesn't exist`
+ou JSON inválido nos fluxos; causa não comprovada).
+
 ## Logs (Graylog)
 
 A API usa Serilog: JSON compacto no console e, quando `Graylog:Host` está configurado, GELF por TCP para o Graylog

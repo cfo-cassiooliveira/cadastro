@@ -13,7 +13,7 @@ vêm a migração e o restante.
   - Arquivos: `.gitignore`, `.gitattributes`, `README.md`, `CLAUDE.md` (de `_templates/project-CLAUDE.md`),
     `global.json`, `Directory.Build.props`, `Directory.Packages.props`, `.editorconfig`, `Cadastro.slnx` com
     `cadastro-backend/src/{Domain,Application,Infrastructure,Api}` e `tests/{Domain.Tests,Application.Tests,Api.IntegrationTests,ArchitectureTests}`,
-    `docs/adr/0001-*.md` e `0002-*.md` (já propostos)
+    `docs/adr/0001-*.md` e `0002-*.md` (aceitos em 2026-11-17, T25)
   - Testes inclusos: `ArchitectureTests` (regra de dependência + convenções CQRS), smoke `GET /health/live` = 200
   - Pronto quando: `dotnet build Cadastro.slnx -warnaserror` e `dotnet test --solution Cadastro.slnx` verdes
 
@@ -125,7 +125,7 @@ vêm a migração e o restante.
 
 ## Fase 3 — Keycloak: SPI de migração
 
-- [ ] **T13** [KC] — `MaskedIdentifier` e eventos de migração na auditoria
+- [x] **T13** [KC] — `MaskedIdentifier` e eventos de migração na auditoria
   - Arquivos: `legacy/MaskedIdentifier.java`, `audit/AuditEventMapper.java`, `audit/AuditRecord.java`,
     `doc/adr/0007-*.md` (aceite)
   - Testes inclusos: `MaskedIdentifierTest` (exemplos da RN-10, ≤ 3 caracteres, domínio composto, maiúsculas,
@@ -133,7 +133,7 @@ vêm a migração e o restante.
     completo nunca aparece)
   - Pronto quando: JaCoCo ≥ 80% e regras do ADR-0002/0007 cobertas
 
-- [ ] **T14** [P] [KC] — `LegacyUserClient` (HTTPS + assinatura HMAC)
+- [x] **T14** [P] [KC] — `LegacyUserClient` (HTTPS + assinatura HMAC)
   - Arquivos: `legacy/LegacyUserClient.java`, `HttpLegacyUserClient.java`, `LegadoRequestSigner.java`,
     `LegacyUser.java`, `LegacyClientSettings.java`; `docker-compose.yml` monta a CA pública do Legado
   - Testes inclusos: unitários — assinador confere com os vetores do ADR-0005 do legado; com servidor HTTPS local:
@@ -141,7 +141,7 @@ vêm a migração e o restante.
     recusada na inicialização; senha e chave nunca em `toString`/log
   - Pronto quando: nenhuma dependência nova embutida no JAR (só JDK `HttpClient`/`javax.crypto` e o Jackson do Keycloak)
 
-- [ ] **T15** [KC] — `LegacyMigrationService` + `LegacyUsernamePasswordForm` + fluxo `workspace-browser`
+- [x] **T15** [KC] — `LegacyMigrationService` + `LegacyUsernamePasswordForm` + fluxo `workspace-browser`
   - Depende de: T13, T14
   - Arquivos: `legacy/LegacyMigrationService.java`, `LegacyUserMapper.java`, `LegacyUsernamePasswordForm(Factory).java`,
     `META-INF/services/...AuthenticatorFactory`, realm (fluxo `workspace-browser` com OTP condicional `admin`) +
@@ -151,7 +151,7 @@ vêm a migração e o restante.
     incluindo admin → configurar OTP)
   - Pronto quando: login de usuário nativo não chama o Legado (verificado no IT)
 
-- [ ] **T16** [KC] — `LegacyResetChooseUser` + fluxo `workspace-reset-credentials` + mensagens do tema
+- [x] **T16** [KC] — `LegacyResetChooseUser` + fluxo `workspace-reset-credentials` + mensagens do tema
   - Depende de: T15
   - Arquivos: `legacy/LegacyResetChooseUser(Factory).java`, realm + `provision.sh`,
     `theme/workspace/login/messages/messages_{pt_BR,en}.properties`, versão do `pom.xml` (cache-busting, se
@@ -161,7 +161,7 @@ vêm a migração e o restante.
     "Atualizar senha"
   - Pronto quando: verificação visual com zero defeitos das telas do tema alteradas (matriz + varredura)
 
-- [ ] **T17** [KC] — `LegacyMigrationCompletionListener` (marcação após commit)
+- [x] **T17** [KC] — `LegacyMigrationCompletionListener` (marcação após commit)
   - Depende de: T15, T11
   - Arquivos: `legacy/LegacyMigrationCompletionListener(Factory).java`, `META-INF/services/...EventListenerProviderFactory`,
     realm (listener habilitado) + `provision.sh`
@@ -210,7 +210,7 @@ vêm a migração e o restante.
   - Testes inclusos: testes de log (evento, nível, sem dado pessoal); `smoke-graylog` (mensagens nos streams
     `Cadastro - *` e `Identidade - Migração`; alertas disparam com carga sintética)
 
-- [ ] **T24** [CD] — E2E de migração com a stack completa (keycloak + legado + cadastro + Mailpit)
+- [x] **T24** [CD] — E2E de migração com a stack completa (keycloak + legado + cadastro + Mailpit)
   - Depende de: T12, T16, T17, T21, T22
   - Arquivos: `cadastro/e2e/` + `scripts/e2e.sh`
   - Testes inclusos: Playwright (3 dispositivos) — usuário do Legado entra no Cadastro e é migrado; senha curta →
@@ -218,9 +218,13 @@ vêm a migração e o restante.
     login no Legado recusado depois; admin migrado configura OTP; Graylog sem e-mail completo
   - Independência: com o Keycloak parado, o Legado sobe e passa no próprio E2E; com o Legado parado, usuário já
     migrado entra no Cadastro e o não migrado recebe a mensagem genérica
+  - **Escopo reduzido nesta entrega (T24 entregue assim)**: as telas "Criar conta" (T21) e "Usuários" (T22) estão fora do escopo da DEV-005,
+    então a T24 cobre só login, migração, reset e perfil. Fora do E2E: Legado fora do ar (exigiria parar o container;
+    coberto por `LegacyLoginIT`) e admin migrado configurando OTP (o Legado não cria Admin pela API; coberto por
+    `LegacyLoginIT`). T21 e T22 seguem em aberto.
 
-- [ ] **T25** — Documentação e ADRs aceitos
-  - Arquivos: `README.md` e `CLAUDE.md` dos três repositórios (comandos, rede `workspace-identity`, regras que não
+- [x] **T25** — Documentação e ADRs aceitos (README e CLAUDE.md dos 4 repositórios; ADRs 0006/0007 do keycloak, 0005 do legado e 0001/0002 do cadastro aceitos em 2026-11-17)
+  - Arquivos: `README.md` e `CLAUDE.md` dos quatro repositórios (keycloak, legado, cadastro, graylog) (comandos, rede `workspace-identity`, regras que não
     podem regredir), `keycloak/README.md` (remove a pendência "Migração dos usuários do legado"), ADRs → Aceito
   - Pronto quando: um clone limpo sobe tudo seguindo só os READMEs
 

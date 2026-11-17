@@ -5,6 +5,10 @@ module.exports = defineConfig({
   testDir: "./tests",
   globalSetup: require.resolve("./global-setup.js"),
   fullyParallel: false,
+  // Um worker: o Legado limita as chamadas de credenciais por IP e os testes de migração dividem esse limite.
+  workers: 1,
+  timeout: 120_000,
+  expect: { timeout: 15_000 },
   forbidOnly: true,
   retries: 0,
   reporter: [["list"]],

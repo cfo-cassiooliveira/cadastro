@@ -1,9 +1,12 @@
 # ADR-0002: Dados do usuário no User Profile do Keycloak, sem banco próprio
 
-- **Status**: Proposto
+- **Status**: Aceito (2026-11-17)
 - **Data**: 2026-11-13
 - **Decisores**: Cassio Oliveira (responsável técnico)
 - **Artigos da Constituição relacionados**: Art. II.1, Art. III.4, Art. IV.1
+- **Nota do aceite (2026-11-17)**: a leitura pela Admin API (`KeycloakAdminClient`, `GET /api/v1/users/me`) e o User
+  Profile do realm estão implementados e testados (T04, T07). A **gravação** pela Admin API (autocadastro, T19) e a
+  listagem (T20) ainda não existem: ficam fora da DEV-005, e esta decisão vale para elas sem alteração.
 
 ## Contexto
 
