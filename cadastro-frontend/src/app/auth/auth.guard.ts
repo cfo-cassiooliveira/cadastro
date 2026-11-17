@@ -15,3 +15,18 @@ export const authGuard: CanActivateFn = (_route, state) => {
   auth.login(state.url);
   return false;
 };
+
+/**
+ * Rota por role: visitante vai ao login (e volta); quem entrou sem a role vai à tela de acesso negado. A API continua
+ * sendo a autoridade (403), este guard só evita mostrar uma tela que o usuário não pode usar.
+ */
+export function roleGuard(role: string): CanActivateFn {
+  return (_route, state) => {
+    const auth = inject(AuthService);
+    if (!auth.isAuthenticated()) {
+      auth.login(state.url);
+      return false;
+    }
+    return auth.hasRole(role) ? true : inject(Router).parseUrl('/forbidden');
+  };
+}

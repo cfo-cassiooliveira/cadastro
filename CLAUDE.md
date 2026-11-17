@@ -51,8 +51,9 @@ dotnet build Cadastro.slnx -warnaserror
 dotnet test --solution Cadastro.slnx
 dotnet format Cadastro.slnx --verify-no-changes
 cd cadastro-frontend && npm ci && npx ng test --watch=false && npx ng lint && npm run lint:styles && npx ng build
-./scripts/generate-env.sh && ./scripts/identity-network.sh # .env (segredo copiado do ../keycloak/.env) e rede compartilhada
+./scripts/generate-env.sh && ./scripts/identity-network.sh # .env (segredo do ../keycloak/.env, chave de log do ../legado/.env) e rede
 docker compose up -d --build                               # http://localhost:4300 (Keycloak de pé em ../keycloak)
+docker compose -f docker-compose.yml -f docker-compose.graylog.yml up -d --build # idem, com logs no ../graylog
 ./scripts/e2e.sh                                           # E2E (Playwright + axe, 3 dispositivos) com a stack de pé
 ./scripts/sonar-analysis.sh                                # SonarQube local (../sonarqube) + Quality Gate
 ```
@@ -67,8 +68,43 @@ docker compose up -d --build                               # http://localhost:43
   vem no corpo de `/bff/user` e fica só em memória (nenhum cookie legível por JavaScript),
   `FallbackPolicy` autenticada (health/OpenAPI/endpoints de entrada com `AllowAnonymous` comentado).
 - Tokens só com id, login e roles (client `cadastro` sem scopes `profile`/`email`); a sessão guarda só `sub`,
-  `preferred_username`, `sid` e roles. Cobertos por `tests/Cadastro.Api.IntegrationTests/Auth/`.
+  `preferred_username`, `sid`, `acr`, `auth_time` e roles. Cobertos por `tests/Cadastro.Api.IntegrationTests/Auth/`.
+- Pesquisa em logs (`POST /api/v1/log-search/queries` e `GET /api/v1/log-search/access`, `Cadastro.Api/LogSearch`): policy `logs:investigate` = role
+  `log-investigator` + `acr=otp` + `auth_time` <= 5 min (`OtpStepUpRequirement`; o BFF pede `/bff/login?acr_values=otp` e
+  confere o retorno), antiforgery, rate limit `log-search` (30/h por `sub`), 400 sem eco do valor. Auditoria: um log por
+  pesquisa com `audit_event`, `investigator_id` (o `sub`), `data_type`, `case_reference`, `trace_id` e `tokens` como
+  **texto único** separado por vírgula (nunca lista: `ParseArrayValues=true`), nunca o valor nem a máscara; o 403 loga
+  `log_search_access_denied` só com `investigator_id`. Esses nomes não podem entrar em `PersonalDataFields` (contrato com o
+  stream do `../graylog`). `LogSearchFields` deriva de `PersonalDataFields` (sem lista própria). Cobertos por
+  `tests/Cadastro.Api.IntegrationTests/LogSearch/` e `Auth/OtpStepUpTests.cs`. A tela `/log-search` (frontend:
+  `app/log-search/`, guard `logSearchGuard`, que registra o acesso negado via `GET /api/v1/log-search/access` antes de ir a `/forbidden`) oferece o botão "Confirmar com código" que abre
+  `/bff/login?acr_values=otp&returnUrl=%2Flog-search` quando o 403 indica OTP ausente ou vencido; ao confirmar o OTP, o
+  formulário volta vazio (o valor é descartado antes de sair da tela); o valor pesquisado nunca vai para URL, storage, `AppLogger` nem console (README).
 - `Bff:LocalSecureContext` só no compose local (http://localhost é contexto seguro para o navegador).
+- Log **sem dado pessoal** (Constituição, Art. IV.6). Só um dado **aprovado em ADR** vai ao log, e apenas como
+  campo estruturado com o nome do tipo (`{Cpf}`, `{Cnpj}`, `{Phone}`/`{MobilePhone}`, `{UserName}`, `{Email}`) no
+  message template (`[LoggerMessage]`), **nunca** concatenado ou interpolado. Objeto destruturado (`{@Obj}`), dicionário e lista são tratados (máscara no próprio nível e token de topo `Obj_Campo_token`), mas dado pessoal não deve ir em log.
+  O Cadastro usa Serilog (`Cadastro.Api/Common/LoggingSetup.cs`, mesmo padrão do Legado): JSON no console e, com
+  `Graylog:Host` configurado (`docker-compose.graylog.yml`), GELF TCP com cada propriedade como campo próprio e
+  `service_name=cadastro-api`. Por isso a máscara por nome de campo do `../graylog` (ADR-0002, listas `LGPD_*` do
+  `provisioning/provision.sh`) vale para os logs do Cadastro; nome fora dessa lista não tem máscara garantida.
+  Esses campos são **pseudonimizados na origem** (ADR-0003 do `../graylog`): `PseudonymizationEnricher`
+  (`Cadastro.Api/Common`, último enricher) troca o valor pela máscara e soma `<Campo>_token` pela porta
+  `ILogPseudonymizer` (`Cadastro.Application/LogSearch`; HMAC em `Cadastro.Infrastructure/Logging/LogPseudonymizer.cs`,
+  mesmo algoritmo e mesma chave do `../legado`). Token aninhado vai como propriedade de topo (`Obj_Campo_token`), nunca
+  no texto. Chave em `Logging:Pseudonymization` (user-secrets/`.env` via `./scripts/generate-env.sh`), validada na
+  subida sem expor o valor. Cobertos por `Logging/PseudonymizationTests.cs` (vetores do plano) e
+  `Logging/PseudonymizedGelfTests.cs` (GELF TCP real). No Graylog, `ClientSource`, `RequestPath`,
+  `case_reference` e `http_path` estão em `LGPD_TEXT_FIELDS` (texto varrido pela máscara). Os client-logs
+  (`POST /api/v1/client-logs`, `ClientLogs/`) também são mascarados na origem: `ClientMessage`, `ClientSource` e
+  `ClientStack` passam por `PersonalDataTextMasker` (e-mail inclusive `%40`, CNPJ, CPF e celular com DDD, mesmos padrões
+  do `lgpd-text.rule.tmpl` do `../graylog`) usando a máscara do ADR-0002 via `ILogPseudonymizer` (sem token em texto
+  livre); trecho fora do formato vira `***`, estouro de tempo da regex (100 ms) troca o campo por `***` com Warning sem o
+  texto, e o `ClientSource` perde query string e fragmento. Cobertos por `Logging/ClientLogEndpointTests.cs` e
+  `Logging/PersonalDataTextMaskerTests.cs`.
+- Serilog com `preserveStaticLogger: true`: nunca dependa do `Log.Logger` estático. Campos padrão e Graylog opcional
+  cobertos por `tests/Cadastro.Api.IntegrationTests/Logging/` (os testes leem os eventos reais pelo sink
+  `CollectingLogSink`; o `FakeLogCollector` recebe os mesmos eventos pelo `FakeLogCollectorSink`).
 
 ## Decisões e particularidades
 

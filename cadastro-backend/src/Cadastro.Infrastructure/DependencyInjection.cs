@@ -1,5 +1,7 @@
+using Cadastro.Application.LogSearch;
 using Cadastro.Application.Users;
 using Cadastro.Infrastructure.Keycloak;
+using Cadastro.Infrastructure.Logging;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -9,7 +11,7 @@ using Microsoft.Extensions.Options;
 
 namespace Cadastro.Infrastructure;
 
-/// <summary>Registro dos adaptadores de infraestrutura (Keycloak).</summary>
+/// <summary>Registro dos adaptadores de infraestrutura (Keycloak e pseudonimização dos logs).</summary>
 public static class DependencyInjection
 {
     // Uma tentativa lenta não pode segurar a requisição do usuário: 3 s por tentativa, 10 s no total (Art. VII.1).
@@ -31,6 +33,20 @@ public static class DependencyInjection
         services.AddSingleton<KeycloakServiceTokenProvider>();
         services.AddHttpClient<IIdentityUserReadService, KeycloakAdminClient>(ConfigureBaseAddress)
             .AddStandardResilienceHandler(ConfigureResilience);
+        return services;
+    }
+
+    /// <summary>
+    /// Registra a pseudonimização dos logs (ADR-0003 do graylog) com as chaves de <c>Logging:Pseudonymization</c>,
+    /// validadas na subida: sem chave atual válida a API não sobe (fail fast), em vez de logar sem pseudonimizar.
+    /// </summary>
+    public static IServiceCollection AddLogPseudonymization(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<PseudonymizationOptions>()
+            .Bind(configuration.GetSection(PseudonymizationOptions.SectionName))
+            .ValidateOnStart();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<PseudonymizationOptions>, PseudonymizationOptionsValidator>());
+        services.TryAddSingleton<ILogPseudonymizer, LogPseudonymizer>();
         return services;
     }
 

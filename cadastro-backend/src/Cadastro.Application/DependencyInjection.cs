@@ -1,3 +1,4 @@
+using Cadastro.Application.LogSearch;
 using Cadastro.Application.Users;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -10,6 +11,7 @@ public static class DependencyInjection
     public static IServiceCollection AddApplication(this IServiceCollection services)
     {
         services.AddScoped<IGetMyProfileHandler, GetMyProfileHandler>();
+        services.AddScoped<IGetLogSearchQueryHandler, GetLogSearchQueryHandler>();
         return services;
     }
 }

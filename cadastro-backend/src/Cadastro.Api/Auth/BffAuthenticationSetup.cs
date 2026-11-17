@@ -1,8 +1,12 @@
+using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 
 namespace Cadastro.Api.Auth;
 
@@ -29,6 +33,15 @@ internal static partial class BffAuthenticationSetup
 
     /// <summary>Policy: listagem de usuários (role <c>admin</c>).</summary>
     public const string UsersReadPolicy = "users:read";
+
+    /// <summary>Policy: pesquisa em logs por token (role <c>log-investigator</c> + OTP digitado há no máximo 5 min).</summary>
+    public const string LogsInvestigatePolicy = "logs:investigate";
+
+    /// <summary>Role do realm que habilita a pesquisa em logs (atribuição nominal no Keycloak).</summary>
+    public const string LogInvestigatorRole = "log-investigator";
+
+    /// <summary>Item de <c>AuthenticationProperties</c> que marca o login pedido com step-up de OTP.</summary>
+    public const string StepUpItem = "step_up";
 
     /// <summary>Encerramento da sessão por inatividade (spec 001, ADR-0001).</summary>
     public static readonly TimeSpan SessionIdleTimeout = TimeSpan.FromMinutes(30);
@@ -73,7 +86,13 @@ internal static partial class BffAuthenticationSetup
         services.AddAuthorizationBuilder()
             .SetFallbackPolicy(new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
             .AddPolicy(UsersSelfPolicy, policy => policy.RequireAuthenticatedUser())
-            .AddPolicy(UsersReadPolicy, policy => policy.RequireRole("admin"));
+            .AddPolicy(UsersReadPolicy, policy => policy.RequireRole("admin"))
+            .AddPolicy(LogsInvestigatePolicy, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireRole(LogInvestigatorRole)
+                .AddRequirements(new OtpStepUpRequirement()));
+        services.AddSingleton<IAuthorizationHandler, OtpStepUpHandler>();
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, LogSearchAccessAuditHandler>();
         return services;
     }
 
@@ -135,6 +154,9 @@ internal static partial class BffAuthenticationSetup
         options.SaveTokens = true;
         options.GetClaimsFromUserInfoEndpoint = false;
         options.MapInboundClaims = false;
+        // O handler roda as ClaimActions padrão DEPOIS do OnTokenValidated e o padrão traz DeleteClaim("acr"): sem isto a
+        // sessão perde o acr e o step-up de OTP nunca é satisfeito. auth_time, sid e sub não são removidos pelo padrão.
+        options.ClaimActions.Remove(SessionPrincipal.AcrClaim);
         // Só "openid": o client traz o login por mapper próprio; nome e e-mail não entram nos tokens (minimização, LGPD).
         options.Scope.Clear();
         options.Scope.Add("openid");
@@ -151,10 +173,19 @@ internal static partial class BffAuthenticationSetup
         {
             // Redirect URI exato do Keycloak, independente do Host repassado pelo nginx.
             context.ProtocolMessage.RedirectUri = redirectUri;
+            ApplyStepUp(context.ProtocolMessage, context.Properties);
             return Task.CompletedTask;
         };
         options.Events.OnTokenValidated = context =>
         {
+            // Step-up pedido: o parâmetro acr_values pode ser alterado no navegador, então o resultado é conferido.
+            if (!StepUpSatisfied(context.Properties, context.Principal!, context.TokenEndpointResponse?.AccessToken, timeProvider))
+            {
+                LogStepUpNotSatisfied(logger);
+                context.Fail("The OTP step-up was requested but not satisfied.");
+                return Task.CompletedTask;
+            }
+
             context.Principal = SessionPrincipal.Create(
                 context.Principal!, context.TokenEndpointResponse?.AccessToken, CookieAuthenticationDefaults.AuthenticationScheme);
             LogSignedIn(logger, context.Principal.FindFirst(SessionPrincipal.SubjectClaim)?.Value ?? "unknown");
@@ -170,8 +201,27 @@ internal static partial class BffAuthenticationSetup
         };
     }
 
+    /// <summary>Pede ao Keycloak o step-up de OTP (<c>acr_values=otp</c>) quando o login foi iniciado com ele.</summary>
+    internal static void ApplyStepUp(OpenIdConnectMessage message, AuthenticationProperties? properties)
+    {
+        if (properties?.Items.ContainsKey(StepUpItem) == true)
+        {
+            message.AcrValues = OtpStepUpRequirement.OtpAcr;
+        }
+    }
+
+    // Sem step-up pedido, nada a conferir; com ele, o token recebido precisa ter acr=otp e auth_time recente.
+    private static bool StepUpSatisfied(
+        AuthenticationProperties? properties, ClaimsPrincipal idToken, string? accessToken, TimeProvider timeProvider) =>
+        properties?.Items.ContainsKey(StepUpItem) != true
+        || OtpStepUpRequirement.IsSatisfied(
+            SessionPrincipal.Create(idToken, accessToken, CookieAuthenticationDefaults.AuthenticationScheme), timeProvider.GetUtcNow());
+
     [LoggerMessage(Level = LogLevel.Information, Message = "User {UserId} signed in")]
     private static partial void LogSignedIn(ILogger logger, string userId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Sign-in rejected: the requested OTP step-up was not satisfied by the identity provider")]
+    private static partial void LogStepUpNotSatisfied(ILogger logger);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Sign-in failed at the identity provider callback ({FailureType})")]
     private static partial void LogSignInFailed(ILogger logger, string failureType);

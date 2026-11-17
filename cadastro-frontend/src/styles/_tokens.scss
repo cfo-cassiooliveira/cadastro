@@ -39,6 +39,11 @@
 
   /* Texto secundário sobre a faixa índigo: >= 4,5:1. */
   --band-text-muted: #cdd2f6;
+
+  /* Bloco de código (consulta do Graylog): fundo grafite e texto claro, contraste acima de 12:1. */
+  --code-bg: var(--ws-graphite);
+  --code-text: #e9ecfb;
+  --font-mono: ui-monospace, 'Cascadia Code', 'SF Mono', consolas, 'Liberation Mono', monospace;
   --font-family:
     'Manrope', system-ui, -apple-system, 'Segoe UI', roboto, 'Helvetica Neue', arial, sans-serif;
   --radius-sm: 8px;

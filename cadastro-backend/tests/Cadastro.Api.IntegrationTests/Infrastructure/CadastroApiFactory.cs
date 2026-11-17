@@ -1,4 +1,5 @@
 using System.Net;
+using System.Security.Cryptography;
 using Cadastro.Infrastructure.Keycloak;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -6,6 +7,7 @@ using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
+using Serilog.Core;
 
 namespace Cadastro.Api.IntegrationTests.Infrastructure;
 
@@ -18,11 +20,17 @@ public class CadastroApiFactory : WebApplicationFactory<Program>
     /// <summary>Segredo usado só nos testes (o realm de teste tem o mesmo valor).</summary>
     public const string TestClientSecret = "test-only-client-secret";
 
+    /// <summary>Chave de pseudonimização dos logs só deste processo de teste (aleatória, nunca versionada).</summary>
+    public static readonly string PseudonymizationKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+
     /// <summary>Endereço do Keycloak que a API usa; sem container, um endereço que nunca é chamado.</summary>
     protected virtual string KeycloakBaseAddress => "http://127.0.0.1:9";
 
     /// <summary>Logs emitidos pela API durante os testes.</summary>
     public FakeLogCollector Logs => Services.GetRequiredService<FakeLogCollector>();
+
+    /// <summary>Eventos do Serilog com todas as propriedades (as mesmas que o sink GELF envia ao Graylog).</summary>
+    public CollectingLogSink SerilogEvents { get; } = new();
 
     /// <inheritdoc />
     protected override void ConfigureWebHost(IWebHostBuilder builder)
@@ -37,8 +45,15 @@ public class CadastroApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("KeycloakAdmin:BaseUrl", $"{keycloak}/");
         builder.UseSetting("KeycloakAdmin:ClientId", "cadastro");
         builder.UseSetting("KeycloakAdmin:ClientSecret", TestClientSecret);
+        builder.UseSetting("Logging:Pseudonymization:Keys:k1", PseudonymizationKey);
         builder.ConfigureLogging(logging => logging.AddFakeLogging());
-        builder.ConfigureTestServices(ConfigureKeycloakProbe);
+        builder.ConfigureTestServices(services =>
+        {
+            // O Serilog lê sinks do DI (ReadFrom.Services): os testes inspecionam os eventos reais.
+            services.AddSingleton<ILogEventSink>(SerilogEvents);
+            services.AddSingleton<ILogEventSink>(sp => new FakeLogCollectorSink(sp.GetRequiredService<FakeLogCollector>()));
+            ConfigureKeycloakProbe(services);
+        });
     }
 
     /// <summary>Sem Keycloak de verdade, a sonda de readiness responde 200.</summary>

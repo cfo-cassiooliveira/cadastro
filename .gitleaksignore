@@ -1,1 +1,12 @@
 # Falsos positivos do gitleaks (security.md): fingerprint + motivo em cada entrada.
+# Vetores de teste da pseudonimização (ADR-0003 do graylog, plan.md §2): chave HMAC FICTÍCIA e pública (bytes 00..1f) e token calculado com ela; nunca usada em ambiente algum (as chaves reais ficam no .env, gerado por script).
+2bb9ce006f665f1e703c5c01330aa2c9d2d77dab:cadastro-backend/tests/Cadastro.Api.IntegrationTests/Logging/PseudonymizationTests.cs:generic-api-key:20
+2bb9ce006f665f1e703c5c01330aa2c9d2d77dab:cadastro-backend/tests/Cadastro.Api.IntegrationTests/Logging/PseudonymizationTests.cs:generic-api-key:21
+# Vetores de teste da pseudonimização (ADR-0003 do graylog, plan.md §2): chave HMAC FICTÍCIA e pública (bytes 00..1f) e token calculado com ela; nunca usada em ambiente algum (as chaves reais ficam no .env, gerado por script).
+160ace2f64cd82b43a260ff2942ffdbc6e5fb6f3:cadastro-backend/tests/Cadastro.Api.IntegrationTests/LogSearch/LogSearchEndpointTests.cs:generic-api-key:26
+160ace2f64cd82b43a260ff2942ffdbc6e5fb6f3:cadastro-backend/tests/Cadastro.Api.IntegrationTests/LogSearch/LogSearchEndpointTests.cs:generic-api-key:27
+# Dados FICTÍCIOS de teste da pesquisa em logs: CPF de exemplo, chave HMAC pública de vetor (bytes 00..1f, ADR-0003/plan.md §2) e token de sequência; nunca usados em ambiente algum (as chaves reais ficam no .env, gerado por script).
+7c32024a10fb9cafe52250e840dd11642520451e:cadastro-backend/tests/Cadastro.Api.IntegrationTests/Logging/ClientLogEndpointTests.cs:generic-api-key:124
+7c32024a10fb9cafe52250e840dd11642520451e:cadastro-backend/tests/Cadastro.Api.IntegrationTests/Logging/PersonalDataTextMaskerTests.cs:generic-api-key:15
+7c32024a10fb9cafe52250e840dd11642520451e:cadastro-frontend/src/app/log-search/log-search-page.spec.ts:generic-api-key:15
+7c32024a10fb9cafe52250e840dd11642520451e:scripts/log-search-token.sh:generic-api-key:27

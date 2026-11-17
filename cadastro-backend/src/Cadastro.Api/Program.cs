@@ -2,6 +2,7 @@ using Cadastro.Api.Auth;
 using Cadastro.Api.ClientLogs;
 using Cadastro.Api.Common;
 using Cadastro.Api.Health;
+using Cadastro.Api.LogSearch;
 using Cadastro.Api.Users;
 using Cadastro.Application;
 using Cadastro.Infrastructure;
@@ -12,6 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Não revela o servidor/versão no header "Server" (OWASP A02).
 builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
 
+builder.Services.AddCadastroLogging(builder.Configuration, builder.Environment);
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddOpenApi();
@@ -60,6 +62,7 @@ if (app.Environment.IsDevelopment())
 app.MapCadastroHealthChecks();
 app.MapBffEndpoints();
 app.MapUserEndpoints();
+app.MapLogSearchEndpoints();
 app.MapClientLogEndpoints();
 
 await app.RunAsync();
