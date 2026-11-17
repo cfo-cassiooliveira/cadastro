@@ -82,10 +82,10 @@ lista, derivada de `PersonalDataFields`). Erros em Problem Details: 400 com `err
 - **Auditoria** (stream `Cadastro - Pesquisa em logs (LGPD)`): cada pesquisa atendida gera um log `Information` com os
   campos `audit_event=log_search_query_issued`, `investigator_id` (o `sub`), `data_type`, `case_reference`, `trace_id` e
   `tokens` como **texto único** separado por vírgula (uma lista viraria `tokens_0`, `tokens_1`... no sink GELF); nunca o
-  valor nem a máscara. O 403 gera um `Warning` com `audit_event=log_search_access_denied` e só `investigator_id` e
+  valor nem a máscara. O 403 (por falta de role, OTP ausente ou vencido) gera um `Warning` com `audit_event=log_search_access_denied` e só `investigator_id` e
   `trace_id` (sem `tokens`, `data_type` nem `case_reference`). Esses nomes ficam fora de `PersonalDataFields`.
-- **Tela `/log-search` (Pesquisa em logs)**: rota protegida por `roleGuard('log-investigator')`; visitante vai ao login e
-  volta; quem entrou sem a role vai a `/forbidden`. O item do menu só aparece com a role. Formulário (tipo, valor,
+- **Tela `/log-search` (Pesquisa em logs)**: rota protegida por `logSearchGuard` (sobre `roleGuard('log-investigator')`); visitante vai ao login e
+  volta; quem entrou sem a role vai a `/forbidden` e antes disso o guard chama `GET /api/v1/log-search/access` (sem corpo nem dado digitado; policy `logs:investigate`, 204 ou 403 auditado como `log_search_access_denied`, mesmo rate limit; falha da chamada é ignorada e a navegação segue; sem redirecionamento ao step-up). O item do menu só aparece com a role. Formulário (tipo, valor,
   referência do caso) com validação espelhando o backend e 4 estados: inicial, carregando, sucesso (consulta copiável,
   chaves usadas, aviso de `*_token`) e erro (por campo, falha geral com "Tentar de novo", 429, step-up). Contrato de
   segurança: `POST /api/v1/log-search/queries` com `X-XSRF-TOKEN` do `/bff/user`; 403 com a role = OTP ausente ou vencido,

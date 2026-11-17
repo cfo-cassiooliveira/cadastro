@@ -120,6 +120,49 @@ public sealed class LogSearchEndpointTests(CadastroApiFactory factory)
         denied.RenderMessage(System.Globalization.CultureInfo.InvariantCulture).ShouldNotContain("123.456.789-09");
     }
 
+    private static readonly Uri AccessRoute = new("/api/v1/log-search/access", UriKind.Relative);
+
+    [Fact]
+    public async Task Access_WithRoleAndFreshOtp_Returns204WithoutAudit()
+    {
+        await using var host = Host();
+        using var client = Client(host, new TestIdentity());
+
+        using var response = await client.GetAsync(AccessRoute, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.NoContent);
+        AuditEvents(host).ShouldBeEmpty();
+    }
+
+    [Fact]
+    public async Task Access_WithoutRole_Returns403AndAuditsOnlyInvestigatorAndTrace()
+    {
+        await using var host = Host();
+        using var client = Client(host, new TestIdentity(Role: "user"));
+
+        using var response = await client.GetAsync(AccessRoute, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
+        var denied = AuditEvents(host).Single();
+        Scalar(denied, "audit_event").ShouldBe("log_search_access_denied");
+        Scalar(denied, "investigator_id").ShouldBe(_investigator);
+        denied.Properties.ShouldContainKey("trace_id");
+        denied.Properties.ShouldNotContainKey("tokens");
+        denied.Properties.ShouldNotContainKey("data_type");
+        denied.Properties.ShouldNotContainKey("case_reference");
+    }
+
+    [Fact]
+    public async Task Access_WithoutSession_Returns401()
+    {
+        await using var host = Host();
+        using var client = Client(host, null);
+
+        using var response = await client.GetAsync(AccessRoute, TestContext.Current.CancellationToken);
+
+        response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
+    }
+
     [Fact]
     public async Task Query_AboveTheLimit_Returns429PerInvestigator()
     {
@@ -174,8 +217,10 @@ public sealed class LogSearchEndpointTests(CadastroApiFactory factory)
         tokens[1].ShouldStartWith("k2-");
         issued.Properties.Keys.ShouldNotContain(key => key.StartsWith("tokens_", StringComparison.Ordinal));
 
-        // Nenhum evento da requisição carrega o valor (nem formatado) nem a máscara.
-        foreach (var logEvent in Sink(host).Events)
+        // Nenhum evento da requisição carrega o valor (nem formatado) nem a máscara. Só os eventos desta requisição
+        // (mesmo trace_id): o sink é compartilhado e testes paralelos de client-logs emitem a máscara legitimamente.
+        var traceId = Scalar(issued, "trace_id");
+        foreach (var logEvent in Sink(host).Events.Where(e => e.Properties.TryGetValue("trace_id", out var t) && t is ScalarValue { Value: var v } && Equals(v?.ToString(), traceId)))
         {
             var everything = logEvent.RenderMessage(System.Globalization.CultureInfo.InvariantCulture) + string.Concat(logEvent.Properties.Select(p => p.Value.ToString()));
             everything.ShouldNotContain("123.456.789-09");

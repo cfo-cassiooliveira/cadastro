@@ -69,7 +69,7 @@ docker compose -f docker-compose.yml -f docker-compose.graylog.yml up -d --build
   `FallbackPolicy` autenticada (health/OpenAPI/endpoints de entrada com `AllowAnonymous` comentado).
 - Tokens só com id, login e roles (client `cadastro` sem scopes `profile`/`email`); a sessão guarda só `sub`,
   `preferred_username`, `sid`, `acr`, `auth_time` e roles. Cobertos por `tests/Cadastro.Api.IntegrationTests/Auth/`.
-- Pesquisa em logs (`POST /api/v1/log-search/queries`, `Cadastro.Api/LogSearch`): policy `logs:investigate` = role
+- Pesquisa em logs (`POST /api/v1/log-search/queries` e `GET /api/v1/log-search/access`, `Cadastro.Api/LogSearch`): policy `logs:investigate` = role
   `log-investigator` + `acr=otp` + `auth_time` <= 5 min (`OtpStepUpRequirement`; o BFF pede `/bff/login?acr_values=otp` e
   confere o retorno), antiforgery, rate limit `log-search` (30/h por `sub`), 400 sem eco do valor. Auditoria: um log por
   pesquisa com `audit_event`, `investigator_id` (o `sub`), `data_type`, `case_reference`, `trace_id` e `tokens` como
@@ -77,7 +77,7 @@ docker compose -f docker-compose.yml -f docker-compose.graylog.yml up -d --build
   `log_search_access_denied` só com `investigator_id`. Esses nomes não podem entrar em `PersonalDataFields` (contrato com o
   stream do `../graylog`). `LogSearchFields` deriva de `PersonalDataFields` (sem lista própria). Cobertos por
   `tests/Cadastro.Api.IntegrationTests/LogSearch/` e `Auth/OtpStepUpTests.cs`. A tela `/log-search` (frontend:
-  `app/log-search/`, guard `roleGuard`, `/forbidden` para quem não tem a role) oferece o botão "Confirmar com código" que abre
+  `app/log-search/`, guard `logSearchGuard`, que registra o acesso negado via `GET /api/v1/log-search/access` antes de ir a `/forbidden`) oferece o botão "Confirmar com código" que abre
   `/bff/login?acr_values=otp&returnUrl=%2Flog-search` quando o 403 indica OTP ausente ou vencido; ao confirmar o OTP, o
   formulário volta vazio (o valor é descartado antes de sair da tela); o valor pesquisado nunca vai para URL, storage, `AppLogger` nem console (README).
 - `Bff:LocalSecureContext` só no compose local (http://localhost é contexto seguro para o navegador).

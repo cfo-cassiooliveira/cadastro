@@ -10,12 +10,25 @@ import {
 } from './log-search.model';
 
 const LOG_SEARCH_URL = '/api/v1/log-search/queries';
+const ACCESS_URL = '/api/v1/log-search/access';
 const FIELDS: readonly LogSearchField[] = ['dataType', 'value', 'caseReference'];
 
 /** Cliente da API de pesquisa em logs. Classifica a resposta; não guarda nem registra o valor. */
 @Injectable({ providedIn: 'root' })
 export class LogSearchService {
   private readonly http = inject(HttpClient);
+
+  /**
+   * Registra na trilha de auditoria o acesso negado pela tela: a API responde 403 (e loga só o sub). Sem corpo e sem
+   * dado digitado; qualquer falha é ignorada de propósito, para nunca atrapalhar a ida a /forbidden.
+   */
+  async reportAccessDenied(): Promise<void> {
+    try {
+      await firstValueFrom(this.http.get<void>(ACCESS_URL));
+    } catch {
+      // Best effort: a negação já foi mostrada ao usuário e a API continua sendo a autoridade.
+    }
+  }
 
   /** Gera a consulta do Graylog. O antiforgery (`X-XSRF-TOKEN`) é anexado pelo interceptor. */
   async search(request: LogSearchRequest): Promise<LogSearchOutcome> {
