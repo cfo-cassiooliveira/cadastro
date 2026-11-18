@@ -32,8 +32,12 @@ services:
       # Chaves que cifram o cookie e o antiforgery sobrevivem ao restart do container.
       - api-keys:/keys
     networks:
-      - default
-      - identity
+      default:
+        # Alias único e estável na rede do projeto: o `api` também existe no legado_default e o nome do container
+        # (cadastro-api-1) muda com projeto/escala. Usado pelo blackbox do ../grafana (ADR-0003 do grafana).
+        aliases:
+          - cadastro-api
+      identity: {}
     # Sem "ports": a API só é acessível pela rede interna, via nginx do frontend.
     healthcheck:
       # A imagem aspnet não traz curl/wget: a sonda usa o /dev/tcp do bash (o /bin/sh da imagem é o dash).
