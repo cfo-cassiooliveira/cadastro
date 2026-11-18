@@ -134,8 +134,8 @@ lista, derivada de `PersonalDataFields`). Erros em Problem Details: 400 com `err
   e a tela mostra o aviso de step-up e oferece "Confirmar com código", que abre `/bff/login?acr_values=otp&returnUrl=%2Flog-search`;
   ao voltar do Keycloak a tela abre vazia (o valor foi descartado antes de sair), e o usuário digita de novo. O valor pesquisado nunca vai para URL, `localStorage`,
   `sessionStorage`, `AppLogger` ou console e é limpo da tela e do estado após o sucesso; os erros do servidor são lidos só
-  pelos códigos `log_search.*`. Cobertura: Vitest (`log-search/*.spec.ts`, `auth.guard.spec.ts`) e verificação
-  Playwright + axe nos 3 dispositivos.
+  pelos códigos `log_search.*`. Cobertura: Vitest (`log-search/*.spec.ts`, `auth.guard.spec.ts`); a verificação visual/axe nos 3
+  dispositivos foi manual (sem spec em `e2e/`).
 - **Script local `scripts/log-search-token.sh`** (só desenvolvimento: lê a chave do `.env`; em produção a pesquisa é
   pela tela `/log-search`, com role, OTP e auditoria). Imprime o token de cada chave do `.env` (`k1`, `k2`...) e a
   consulta do Graylog (OR de `<campo>_token:("tok1" OR "tok2")` sobre todos os nomes de campo do tipo):
