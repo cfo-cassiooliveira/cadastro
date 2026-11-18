@@ -74,6 +74,7 @@ eventos de requisição (`X-Correlation-Id`). Sem `Graylog:Host` os logs ficam s
 ```bash
 # Graylog de pé antes (cria a rede "observability")
 docker compose -f docker-compose.yml -f docker-compose.graylog.yml up -d --build
+./scripts/smoke-graylog.sh   # com a stack completa de pé: streams, nenhum valor em claro e alertas (carga sintética GELF)
 ```
 
 **Dado pessoal aprovado em ADR** (CPF, CNPJ, telefone, login, e-mail) só vai como campo estruturado com o nome do tipo

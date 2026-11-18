@@ -15,11 +15,11 @@ listagem admin); usuários do Legado migram sob demanda no primeiro login/reset,
 `/api/v1/addresses/...` (ViaCEP/IBGE); `POST /api/v1/client-logs` (202). Erros em ProblemDetails com códigos estáveis.
 
 **Estado das tarefas** (tasks.md + código)
-- Concluídas: T01-T17, T24 (E2E migração), T25 (docs/ADRs), T05b.
+- Concluídas: T01-T17, T23 (smoke Graylog), T24 (E2E migração), T25 (docs/ADRs), T05b.
 - Pendentes: T18 endereços/VOs, T19 `POST /users`, T20 `GET /users`, T21 tela Criar conta, T22 tela Usuários
   (código: só `GET /users/me`, sem Addresses/RegisterUser).
-- T23 segue `[ ]`: compose, Serilog→GELF, `client-logs` (`log_source=browser`, com teste) e testes de log estão prontos e
-  verificados; falta `scripts/smoke-graylog.sh` (não existe), que exige a stack com o Graylog no ar.
+- T23 `[x]`: `scripts/smoke-graylog.sh` verificado na stack real (30 verificações ok): streams `Cadastro - *` e `Identidade - Migração`,
+  nenhum valor em claro e 8 alertas disparando (carga sintética GELF).
 - Extra fora das tarefas listadas: pesquisa em logs (`/api/v1/log-search`, DEV-004).
 
 Links: [spec.md](spec.md) · [plan.md](plan.md) · [tasks.md](tasks.md)
