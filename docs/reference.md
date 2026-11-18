@@ -77,7 +77,10 @@
   mesmo algoritmo e mesma chave do `../legado`). Token aninhado vai como propriedade de topo (`Obj_Campo_token`), nunca
   no texto. Chave em `Logging:Pseudonymization` (user-secrets/`.env` via `./scripts/generate-env.sh`), validada na
   subida sem expor o valor. Cobertos por `Logging/PseudonymizationTests.cs` (vetores do plano) e
-  `Logging/PseudonymizedGelfTests.cs` (GELF TCP real). No Graylog, `ClientSource`, `RequestPath`,
+  `Logging/PseudonymizedGelfTests.cs` (GELF TCP real). Único campo pessoal em fluxo real hoje: `UserName` (claim
+  `preferred_username`) no login ok (Information) e no acesso negado (Warning) de `BffAuthenticationSetup`; sai só
+  mascarado + `UserName_token` (sem CPF/e-mail/telefone), coberto por `Logging/AuthFlowPseudonymizationTests.cs`
+  (login e acesso negado reais, GELF, fora de formato e contrato de nomes). No Graylog, `ClientSource`, `RequestPath`,
   `case_reference` e `http_path` estão em `LGPD_TEXT_FIELDS` (texto varrido pela máscara). Os client-logs
   (`POST /api/v1/client-logs`, `ClientLogs/`) também são mascarados na origem: `ClientMessage`, `ClientSource` e
   `ClientStack` passam por `PersonalDataTextMasker` (e-mail inclusive `%40`, CNPJ, CPF e celular com DDD, mesmos padrões
