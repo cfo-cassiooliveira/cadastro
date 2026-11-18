@@ -18,8 +18,8 @@ listagem admin); usuários do Legado migram sob demanda no primeiro login/reset,
 - Concluídas: T01-T17, T24 (E2E migração), T25 (docs/ADRs), T05b.
 - Pendentes: T18 endereços/VOs, T19 `POST /users`, T20 `GET /users`, T21 tela Criar conta, T22 tela Usuários
   (código: só `GET /users/me`, sem Addresses/RegisterUser).
-- T23 consta `[ ]` em tasks.md, mas o código já tem `docker-compose.graylog.yml`, Serilog→GELF (`LoggingSetup.cs`),
-  pseudonimização e client-logs; tasks.md provavelmente desatualizado (confirmar com o responsável).
+- T23 segue `[ ]`: compose, Serilog→GELF, `client-logs` (`log_source=browser`, com teste) e testes de log estão prontos e
+  verificados; falta `scripts/smoke-graylog.sh` (não existe), que exige a stack com o Graylog no ar.
 - Extra fora das tarefas listadas: pesquisa em logs (`/api/v1/log-search`, DEV-004).
 
 Links: [spec.md](spec.md) · [plan.md](plan.md) · [tasks.md](tasks.md)

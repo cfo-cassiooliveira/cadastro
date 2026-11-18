@@ -103,6 +103,17 @@ public sealed class ClientLogEndpointTests(CadastroApiFactory factory)
     }
 
     [Fact]
+    public async Task ValidEvent_CarriesBrowserLogSourceProperty_ForGraylogFiltering()
+    {
+        var marker = UniqueSource();
+
+        await PostAsync(new { level = "warning", @event = "auth.session_expired", message = marker, source = "/home" });
+
+        // Sem esse campo o evento do navegador não é distinguível dos da API no Graylog.
+        CollectingLogSink.Scalar(SerilogBrowserEvent(marker).Properties["log_source"]).ShouldBe("browser");
+    }
+
+    [Fact]
     public async Task Source_DropsQueryStringAndFragment_AndMasksEncodedEmail()
     {
         var marker = UniqueSource();
