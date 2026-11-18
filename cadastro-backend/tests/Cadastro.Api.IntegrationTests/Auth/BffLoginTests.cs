@@ -188,7 +188,7 @@ public sealed class BffLoginTests(KeycloakApiFactory factory)
     }
 
     [Fact]
-    public async Task SignIn_LogsOnlyTheTechnicalUserId()
+    public async Task SignIn_LogsTheUserIdAndOnlyTheMaskedUserName()
     {
         using var browser = new BrowserSession(factory);
 
@@ -196,7 +196,7 @@ public sealed class BffLoginTests(KeycloakApiFactory factory)
 
         var records = factory.Logs.GetSnapshot();
         records.ShouldContain(record => record.Level == LogLevel.Information && record.Message.StartsWith("User ", StringComparison.Ordinal)
-            && record.Message.EndsWith(" signed in", StringComparison.Ordinal));
+            && record.Message.EndsWith(" signed in (user name usu***)", StringComparison.Ordinal));
         records.ShouldNotContain(record => record.Message.Contains("usuario.teste", StringComparison.OrdinalIgnoreCase)
             || record.Message.Contains("@example.com", StringComparison.OrdinalIgnoreCase));
     }

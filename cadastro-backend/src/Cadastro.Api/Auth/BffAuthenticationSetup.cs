@@ -123,7 +123,7 @@ internal static partial class BffAuthenticationSetup
         options.Events.OnRedirectToAccessDenied = context =>
         {
             LogAccessDenied(logger, context.HttpContext.User.FindFirst(SessionPrincipal.SubjectClaim)?.Value ?? "unknown",
-                context.Request.Path);
+                context.Request.Path, context.HttpContext.User.FindFirst(SessionPrincipal.UserNameClaim)?.Value);
             context.Response.StatusCode = StatusCodes.Status403Forbidden;
             return Task.CompletedTask;
         };
@@ -188,7 +188,8 @@ internal static partial class BffAuthenticationSetup
 
             context.Principal = SessionPrincipal.Create(
                 context.Principal!, context.TokenEndpointResponse?.AccessToken, CookieAuthenticationDefaults.AuthenticationScheme);
-            LogSignedIn(logger, context.Principal.FindFirst(SessionPrincipal.SubjectClaim)?.Value ?? "unknown");
+            LogSignedIn(logger, context.Principal.FindFirst(SessionPrincipal.SubjectClaim)?.Value ?? "unknown",
+                context.Principal.FindFirst(SessionPrincipal.UserNameClaim)?.Value);
             return Task.CompletedTask;
         };
         options.Events.OnRemoteFailure = context =>
@@ -217,8 +218,9 @@ internal static partial class BffAuthenticationSetup
         || OtpStepUpRequirement.IsSatisfied(
             SessionPrincipal.Create(idToken, accessToken, CookieAuthenticationDefaults.AuthenticationScheme), timeProvider.GetUtcNow());
 
-    [LoggerMessage(Level = LogLevel.Information, Message = "User {UserId} signed in")]
-    private static partial void LogSignedIn(ILogger logger, string userId);
+    // UserName é campo de PersonalDataFields: só sai mascarado + UserName_token (PseudonymizationEnricher), nunca em claro.
+    [LoggerMessage(Level = LogLevel.Information, Message = "User {UserId} signed in (user name {UserName})")]
+    private static partial void LogSignedIn(ILogger logger, string userId, string? userName);
 
     [LoggerMessage(Level = LogLevel.Warning, Message = "Sign-in rejected: the requested OTP step-up was not satisfied by the identity provider")]
     private static partial void LogStepUpNotSatisfied(ILogger logger);
@@ -226,6 +228,6 @@ internal static partial class BffAuthenticationSetup
     [LoggerMessage(Level = LogLevel.Warning, Message = "Sign-in failed at the identity provider callback ({FailureType})")]
     private static partial void LogSignInFailed(ILogger logger, string failureType);
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Access denied for user {UserId} on {Path}")]
-    private static partial void LogAccessDenied(ILogger logger, string userId, PathString path);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Access denied for user {UserId} on {Path} (user name {UserName})")]
+    private static partial void LogAccessDenied(ILogger logger, string userId, PathString path, string? userName);
 }
