@@ -204,12 +204,14 @@ vêm a migração e o restante.
 
 ## Fase 5 — Observabilidade, ponta a ponta e entrega
 
-- [ ] **T23** [CD] — `docker-compose.graylog.yml`, Serilog→GELF e logs do Cadastro
+- [x] **T23** [CD] — `docker-compose.graylog.yml`, Serilog→GELF e logs do Cadastro
   - Feito e verificado (2026-11-18): `docker-compose.graylog.yml`; Serilog→GELF TCP (`LoggingSetup.cs`, `GelfTransportTests`);
     `POST /api/v1/client-logs` com `log_source=browser` no evento (teste `ValidEvent_CarriesBrowserLogSourceProperty_ForGraylogFiltering`);
     testes de evento, nível e dado pessoal em log
-  - Pendente: `scripts/smoke-graylog.sh` (ainda não existe): mensagens nos streams `Cadastro - *` e `Identidade - Migração`
-    e alertas disparando com carga sintética. Exige a stack com o Graylog no ar
+  - Smoke `scripts/smoke-graylog.sh` verificado na stack real (2026-11-18, 30 verificações, 0 falhas): evento do navegador (`client-logs`,
+    `log_source=browser`) em `Cadastro - Navegador`/`API`/`Erros` e fora de `Segurança`; login inválido em `Identidade - Migração` com
+    login mascarado; CPF/e-mail/celular de teste = 0 resultados no Graylog; 8 alertas disparam (1 com o evento real, 7 com carga GELF sintética).
+    Alertas do Cadastro sem definição no provisionamento: nenhuma lacuna (o script acusa se surgir)
 
 - [x] **T24** [CD] — E2E de migração com a stack completa (keycloak + legado + cadastro + Mailpit)
   - Depende de: T12, T16, T17, T21, T22

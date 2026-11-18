@@ -22,7 +22,7 @@ namespace Cadastro.Api.IntegrationTests.LogSearch;
 [Collection(ApiTestGroup.Name)]
 public sealed class LogSearchEndpointTests(CadastroApiFactory factory)
 {
-    // Chave dos vetores do plan.md §2 (bytes 00..1f): pública, só para conferir o algoritmo.
+    // Chave dos vetores do plan.md §2 da spec 001 do graylog (bytes 00..1f): pública, só para conferir o algoritmo.
     private const string VectorKey = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8=";
     private const string CpfToken = "k1-b81c27bb5f38080e6ca0ed38b828f262";
     private readonly string _investigator = Guid.NewGuid().ToString();

@@ -32,6 +32,7 @@ cd cadastro-frontend && npm ci --silent --no-audit --no-fund && npx ng test --wa
 ./scripts/generate-env.sh && ./scripts/identity-network.sh # .env (segredo do ../keycloak/.env, chave de log do ../legado/.env) e rede
 docker compose up -d --build                               # http://localhost:4300 (Keycloak de pé em ../keycloak)
 docker compose -f docker-compose.yml -f docker-compose.graylog.yml up -d --build # idem, com logs no ../graylog
+./scripts/smoke-graylog.sh                                  # smoke Cadastro -> Graylog (streams, LGPD, alertas); stack completa de pé
 ./scripts/e2e.sh                                           # E2E (Playwright + axe, 3 dispositivos) com a stack de pé
 ./scripts/sonar-analysis.sh                                # SonarQube local (../sonarqube) + Quality Gate
 ```

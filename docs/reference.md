@@ -11,8 +11,8 @@
   Keycloak (ADR-0002); o Cadastro não tem banco.
 - **Fora de escopo**: edição de perfil, troca de e-mail, login social, produção.
 - **Requisitos não funcionais**: dados pessoais (nome, e-mail, celular, endereço) → LGPD; nada disso em log.
-- Planejamento: [spec](docs/specs/001-migracao-keycloak/spec.md) · [plano](docs/specs/001-migracao-keycloak/plan.md)
-  · [tarefas](docs/specs/001-migracao-keycloak/tasks.md).
+- Planejamento: [spec](specs/001-migracao-keycloak/spec.md) · [plano](specs/001-migracao-keycloak/plan.md)
+  · [tarefas](specs/001-migracao-keycloak/tasks.md).
 
 ## Glossário do domínio
 
