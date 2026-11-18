@@ -66,13 +66,13 @@ async function legadoPost(route, body) {
 }
 
 /** Cadastra um usuário comum no Legado (autocadastro, perfil User) e devolve o id dele. */
-async function registerLegacyUser({ login, email, password }) {
+async function registerLegacyUser({ login, email, password, mobilePhone = "11987654321" }) {
     const { status, text } = await legadoPost("/users", {
         fullName: "Teste Automatizado",
         userName: login,
         password,
         email,
-        mobilePhone: "11987654321",
+        mobilePhone,
         postalCode: "01001000",
         street: "Praca da Se",
         number: "1",
@@ -141,6 +141,43 @@ async function findKeycloakUser(login) {
 /** Credenciais (senha) que o usuário tem no Keycloak. */
 function keycloakCredentials(userId) {
     return adminApi("GET", `/users/${userId}/credentials`);
+}
+
+/**
+ * Cria no Keycloak um investigador de teste: role log-investigator e OTP (TOTP) já configurado com o segredo informado.
+ * Devolve o id (sub) do usuário. A limpeza é feita por deleteKeycloakUser.
+ */
+async function createInvestigator({ login, email, password, otpSecret }) {
+    const headers = { Authorization: `Bearer ${await adminToken()}`, "Content-Type": "application/json" };
+    const base = `${config.keycloakUrl}/admin/realms/${REALM}`;
+    const otp = {
+        type: "otp",
+        secretData: JSON.stringify({ value: otpSecret }),
+        credentialData: JSON.stringify({ subType: "totp", digits: 6, counter: 0, period: 30, algorithm: "HmacSHA1" }),
+    };
+    const created = await fetch(`${base}/users`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+            username: login,
+            email,
+            firstName: "Investigador",
+            lastName: "Teste",
+            emailVerified: true,
+            enabled: true,
+            credentials: [{ type: "password", value: password, temporary: false }, otp],
+        }),
+    });
+    if (created.status !== 201) throw new Error(`Criação do investigador falhou (HTTP ${created.status})`);
+    const id = created.headers.get("location").split("/").pop();
+    const role = await (await fetch(`${base}/roles/log-investigator`, { headers })).json();
+    const mapped = await fetch(`${base}/users/${id}/role-mappings/realm`, {
+        method: "POST",
+        headers,
+        body: JSON.stringify([role]),
+    });
+    if (!mapped.ok) throw new Error(`Atribuição da role log-investigator falhou (HTTP ${mapped.status})`);
+    return id;
 }
 
 /** Apaga o usuário de teste do Keycloak, se existir (limpeza). */
@@ -249,6 +286,7 @@ module.exports = {
     findKeycloakUser,
     keycloakCredentials,
     deleteKeycloakUser,
+    createInvestigator,
     mailsTo,
     waitForMailText,
     deleteMailsTo,

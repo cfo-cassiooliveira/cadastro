@@ -36,3 +36,11 @@ consultar o Legado (conferido pelo `e2e.sh` nos logs da API do Legado), bloqueio
 
 - Legado fora do ar/timeout: exigiria parar o container; coberto em `keycloak` (`LegacyLoginIT`).
 - Admin do Legado configurando OTP: o Legado não cria Admin pela API; coberto em `LegacyLoginIT`.
+
+## X01: pesquisa por token com eventos reais (`tests/zz-x01-log-search.spec.js`)
+
+Só no projeto `desktop` (`./scripts/e2e.sh --project=desktop zz-x01`). Cria o usuário `x01qa<epoch>` no Legado, loga no Legado e
+no Cadastro (migração) e cria um investigador (role `log-investigator` + OTP) no Keycloak; pesquisa pela tela `/log-search` o
+token de login, e-mail e celular, confere os eventos reais no Graylog, a trilha de auditoria e que nenhum valor de teste aparece
+em claro. O investigador e o usuário migrado são apagados do Keycloak; a conta do Legado precisa de limpeza por SQL
+(`DELETE FROM AspNetUsers WHERE UserName LIKE 'x01qa%'`, com `sqlcmd -I`).
