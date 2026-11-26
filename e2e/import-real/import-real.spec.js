@@ -3,7 +3,7 @@
 // Resultados numéricos vão para <out>/results.json (alimenta o e2e-report.md).
 const fs = require("node:fs");
 const path = require("node:path");
-const { randomBytes } = require("node:crypto");
+const { randomBytes, createHash } = require("node:crypto");
 const { test, expect } = require("@playwright/test");
 const stack = require("./support/stack");
 const { buildCsv } = require("./support/csv");
@@ -452,6 +452,18 @@ test.describe("E1 importação em lote real", () => {
         const summary = await upload.json();
         smallBatchId = summary.batchId;
         step.summary = { valid: summary.validLines, invalid: summary.invalidLines, duplicates: summary.duplicateLines };
+
+        // Gatilho da falha definitiva real: o username que o importador usaria (imp.<24 hex do SHA-256 do id da linha>) já pertence a outro
+        // usuário, sem o atributo importLineId e com outro e-mail; o Keycloak devolve 409 e o consumidor classifica como identity.rejected.
+        const uploaded = await allLines(smallBatchId);
+        for (const person of small.people.filter((p) => p.rejected)) {
+            const fileLine = small.rows.findIndex((row) => row.includes(person.email)) + 1;
+            const line = uploaded.find((l) => l.lineNumber === fileLine);
+            expect(line, `linha ${fileLine} do arquivo (pessoa rejeitada ${person.index})`).toBeTruthy();
+            const username = `imp.${createHash("sha256").update(line.id).digest("hex").slice(0, 24)}`;
+            await stack.createPlainUser({ login: username, email: `bloqueio.${smallRun}.${person.index}@example.test`, password: strongPassword() });
+        }
+
         const confirm = await confirmViaUi();
         expect(confirm.status()).toBeLessThan(300);
 

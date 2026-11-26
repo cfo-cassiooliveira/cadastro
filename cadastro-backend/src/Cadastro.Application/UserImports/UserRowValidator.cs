@@ -104,7 +104,9 @@ internal static partial class UserRowValidator
 
     private static bool ContainsControlCharacter(string value) => value.Any(char.IsControl);
 
-    [GeneratedRegex(@"^[A-Za-z0-9.!#$%&'*+/=?^_`{|}~-]{1,64}@([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$")]
+    // Parte local em átomos separados por ponto (sem ponto no início, no fim ou duplo), até 64 caracteres: o Keycloak 26 recusa
+    // (400 error-invalid-email) as três formas, e o upload as barra antes da confirmação. Domínio: rótulos sem hífen nas pontas e TLD de letras.
+    [GeneratedRegex(@"^(?=[^@]{1,64}@)[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*@([A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}$")]
     private static partial Regex EmailPattern();
 }
 
