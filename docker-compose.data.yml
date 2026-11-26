@@ -1,0 +1,15 @@
+# Entra a API na rede Docker compartilhada "workspace-data", onde o SQL Server do Legado responde pelo alias
+# "legado-sqlserver" (../legado-cadastro-usuarios/docker-compose.data.yml). Necessário para a importação (ADR-0007).
+# Pré-requisito: rede criada pelo Legado (./scripts/data-network.sh em ../legado-cadastro-usuarios) e Legado de pé com o override.
+# Atenção: a rede é compartilhada; qualquer container nela alcança sqlserver:1433 (ver "Riscos" no ADR-0007).
+# Uso:
+#   docker compose -f docker-compose.yml -f docker-compose.data.yml up -d --build
+services:
+  api:
+    networks:
+      data: {}
+
+networks:
+  data:
+    name: workspace-data
+    external: true

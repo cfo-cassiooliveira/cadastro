@@ -44,3 +44,16 @@ no Cadastro (migração) e cria um investigador (role `log-investigator` + OTP) 
 token de login, e-mail e celular, confere os eventos reais no Graylog, a trilha de auditoria e que nenhum valor de teste aparece
 em claro. O investigador e o usuário migrado são apagados do Keycloak; a conta do Legado precisa de limpeza por SQL
 (`DELETE FROM AspNetUsers WHERE UserName LIKE 'x01qa%'`, com `sqlcmd -I`).
+
+## Importação em lote (`tests/user-imports.spec.js`)
+
+Telas `/imports`, `/imports/new` e `/imports/:id` (role `user-importer`). A sessão do BFF e a API são **simuladas no navegador**
+(`support/import-api-mock.js`, `page.route`), então não exige Keycloak, ClamAV, SQL Server nem RabbitMQ, só o frontend em
+`E2E_BASE_URL`; o polling de 3 s usa `page.clock`. Cobre envio, resumo, confirmação (com antiforgery), acompanhamento até
+concluir com erro, relatório CSV, reprocessar, cancelar, lista, axe e rolagem horizontal nos 3 dispositivos, e a ausência do
+menu/rota sem a role. `E2E_SHOTS_DIR=<pasta>` grava um screenshot por estado e dispositivo. A ponta a ponta real (OTP, ClamAV,
+consumidor) fica para o E2E da stack completa.
+
+## Importação em lote REAL (`import-real/`, `scripts/e2e-import.sh`)
+
+Ponta a ponta com a stack real (BFF, ClamAV, SQL Server do Legado, RabbitMQ, Keycloak, Mailpit, Legado): CSV fictício de 5.000 linhas pela tela, conferência no Keycloak/Mailpit/Legado, reenvio (409), idempotência, Keycloak parado no meio de um lote, DLQ e varredura LGPD de logs e payloads AMQP. Roda no **host** (usa o CLI do Docker) e não faz parte de `./scripts/e2e.sh`. Resultados em `e2e/.artifacts/import-real/results.json`; relatório consolidado em `../rabbitmq/docs/specs/002-uso-pelos-projetos/e2e-report.md`. Leva ~14 min (10 criações/s).

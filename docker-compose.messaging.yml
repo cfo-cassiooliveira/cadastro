@@ -1,0 +1,14 @@
+# Entra a API na rede Docker compartilhada "workspace-messaging", onde o RabbitMQ responde por "rabbitmq:5672"
+# (../rabbitmq). Necessário para o relay da outbox da importação (C4). O usuário cadastro-app não tem configure.
+# Pré-requisito: rede criada pelo ../rabbitmq (./scripts/observability-network.sh ou compose do broker de pé).
+# Uso:
+#   docker compose -f docker-compose.yml -f docker-compose.data.yml -f docker-compose.messaging.yml up -d --build
+services:
+  api:
+    networks:
+      messaging: {}
+
+networks:
+  messaging:
+    name: workspace-messaging
+    external: true

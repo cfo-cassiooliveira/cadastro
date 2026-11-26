@@ -1,0 +1,22 @@
+# Liga o consumidor das linhas da importação (spec 002, C5a-C5c) na API: cria o usuário no Keycloak (client cadastro-importer,
+# sem senha, e-mail de ativação de 72 h) e marca o Legado pela API interna (HTTPS + HMAC, CA do Legado).
+# Pré-requisitos: ./scripts/generate-env.sh (copia o segredo do importer do ../keycloak/.env e a chave do Cadastro do
+# ../legado-cadastro-usuarios/.env), Keycloak provisionado, RabbitMQ de pé, Legado de pé com docker-compose.identity.yml
+# (a API interna responde em https://legado-api:8443 na rede workspace-identity, onde a API do Cadastro já está; nenhuma porta é publicada).
+# Uso:
+#   docker compose -f docker-compose.yml -f docker-compose.data.yml -f docker-compose.messaging.yml -f docker-compose.import.yml up -d --build
+services:
+  api:
+    environment:
+      ImportConsumer__Enabled: "true"
+      # Conta de serviço do importador (menor privilégio; só criar usuário e execute-actions-email). Segredo só do .env.
+      KeycloakImporter__ClientId: cadastro-importer
+      KeycloakImporter__ClientSecret: ${KC_CADASTRO_IMPORTER_CLIENT_SECRET:?defina KC_CADASTRO_IMPORTER_CLIENT_SECRET no .env (./scripts/generate-env.sh)}
+      # API interna do Legado: HTTPS confiando só na CA do Legado e requisições assinadas por HMAC (chave cadastro-1).
+      Legado__BaseUrl: https://legado-api:8443/
+      Legado__KeyId: cadastro-1
+      Legado__SigningKey: ${LEGADO_INTERNAL_CADASTRO_KEY:?defina LEGADO_INTERNAL_CADASTRO_KEY no .env (./scripts/generate-env.sh)}
+      Legado__CaCertificatePath: /run/secrets/legado-ca.crt
+    volumes:
+      # Só o certificado público da CA (a chave da CA nunca sai do Legado).
+      - ./../legado-cadastro-usuarios/secrets/internal/ca.crt:/run/secrets/legado-ca.crt:ro

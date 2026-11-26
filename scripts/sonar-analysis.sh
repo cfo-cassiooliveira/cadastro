@@ -49,6 +49,8 @@ dotnet build Cadastro.slnx --configuration Release
 
 echo "==> Backend: testes .NET com cobertura (um relatório por projeto; integração exige Docker)"
 for project in cadastro-backend/tests/*/; do
+  # Pastas de código compartilhado entre testes (ex.: Shared/) não são projetos de teste.
+  compgen -G "${project}*.csproj" > /dev/null || continue
   name="$(basename "$project")"
   dotnet test --project "$project" --no-build --configuration Release \
     --coverage --coverage-output-format xml --coverage-output "${name}.coverage.xml" \

@@ -53,7 +53,8 @@ jobs:
       - run: dotnet build Cadastro.slnx -warnaserror --no-restore
       - run: dotnet format Cadastro.slnx --verify-no-changes --no-restore
       # Testes de integração sobem um Keycloak real (Testcontainers; Docker disponível no runner ubuntu).
-      - run: dotnet test --solution Cadastro.slnx --no-build
+      # Módulos com Testcontainers já se serializam por trava de arquivo (ModuleExclusivity); o flag deixa isso explícito no CI.
+      - run: dotnet test --solution Cadastro.slnx --no-build --max-parallel-test-modules 1
       - run: dotnet list Cadastro.slnx package --vulnerable --include-transitive
 
   frontend:
@@ -135,9 +136,17 @@ jobs:
       (needs.quality-gate.result == 'success' || needs.quality-gate.result == 'skipped')
     steps:
       - uses: actions/checkout@v4
-      # Segredo descartável gerado no runner (nunca versionado nem impresso): o compose exige a variável.
+      # Valores descartáveis gerados no runner (nunca versionados nem impressos): o compose exige as variáveis para
+      # interpolar. O build não conecta no banco nem usa as chaves; o host "ci-placeholder" não existe.
       - name: .env descartável
-        run: echo "KC_CADASTRO_CLIENT_SECRET=$(openssl rand -hex 24)" > .env
+        run: |
+          {
+            echo "KC_CADASTRO_CLIENT_SECRET=$(openssl rand -hex 24)"
+            echo "PERSONAL_DATA_KEY_K1=$(openssl rand -base64 32)"
+            echo "CADASTRO_APP_CONNECTION=Server=ci-placeholder,1433;Database=LegadoUsers;User Id=cadastro_app;Password=$(openssl rand -hex 16)"
+            echo "RABBITMQ_CADASTRO_APP_PASSWORD=$(openssl rand -hex 16)"
+            echo "USER_IMPORT_SUMMARY_KEY=$(openssl rand -base64 32)"
+          } > .env
       - run: docker compose build
       - name: Trivy nas imagens (HIGH/CRITICAL com correção; exceções com prazo no .trivyignore.yaml)
         run: |

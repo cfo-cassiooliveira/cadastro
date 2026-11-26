@@ -28,6 +28,23 @@ services:
       Logging__Pseudonymization__CurrentKeyId: ${LOG_PSEUDONYMIZATION_CURRENT_KEY_ID:-k1}
       Logging__Pseudonymization__Keys__k1: ${LOG_PSEUDONYMIZATION_KEY_K1:-}
       Logging__Pseudonymization__Keys__k2: ${LOG_PSEUDONYMIZATION_KEY_K2:-}
+      # Importação (ADR-0007): runtime com o login cadastro_app (sem acesso ao dbo) e chave AES-256 dos dados pessoais.
+      ConnectionStrings__ImportDb: ${CADASTRO_APP_CONNECTION:?defina CADASTRO_APP_CONNECTION no .env (./scripts/generate-env.sh)}
+      PersonalData__Protection__CurrentKeyVersion: ${PERSONAL_DATA_KEY_VERSION:-k1}
+      PersonalData__Protection__Keys__k1: ${PERSONAL_DATA_KEY_K1:?defina PERSONAL_DATA_KEY_K1 no .env (./scripts/generate-env.sh)}
+      # Token do resumo do lote (HMAC-SHA256, chave do servidor); a API não sobe sem ela.
+      UserImports__SummaryTokenKey: ${USER_IMPORT_SUMMARY_KEY:?defina USER_IMPORT_SUMMARY_KEY no .env (./scripts/generate-env.sh)}
+      # Antivírus (C2): clamd por INSTREAM na rede interna; indisponível = upload recusado (fail-closed).
+      ClamAv__Host: clamav
+      ClamAv__Port: "3310"
+      # Relay da outbox (C4): usuário cadastro-app sem configure (a topologia vem do ../rabbitmq); senha só do .env.
+      RabbitMq__Host: rabbitmq
+      RabbitMq__VirtualHost: dev
+      RabbitMq__UserName: cadastro-app
+      RabbitMq__Password: ${RABBITMQ_CADASTRO_APP_PASSWORD:?defina RABBITMQ_CADASTRO_APP_PASSWORD no .env (./scripts/generate-env.sh)}
+    tmpfs:
+      # Arquivos temporários do upload (CSV com dados pessoais em claro durante a requisição) ficam só em memória, nunca em disco.
+      - /tmp:size=64m
     volumes:
       # Chaves que cifram o cookie e o antiforgery sobrevivem ao restart do container.
       - api-keys:/keys
@@ -46,6 +63,27 @@ services:
       timeout: 3s
       retries: 6
       start_period: 10s
+    restart: unless-stopped
+
+  clamav:
+    # ClamAV (clamd) para verificar os arquivos de importação; sem porta publicada: só a API o alcança pela rede do projeto.
+    image: clamav/clamav:1.4.3@sha256:75fb5fd95fcbe1d7e6d240c369c1572b686ee2c95949d1042b5148de8eddebb4
+    # Teto de memória: o clamd carrega a base de assinaturas (~1,5 GB) e não pode derrubar os demais serviços do WSL2.
+    mem_limit: 2g
+    cap_drop: [ALL]
+    # O entrypoint da imagem (root) ajusta dono e permissões de /var/lib/clamav, /var/log/clamav e /run/clamav e rebaixa para o usuário clamav; sem estas
+    # capacidades o container entra em loop de restart ou sobe sem log ("Operation not permitted").
+    cap_add: [CHOWN, SETUID, SETGID, FOWNER, DAC_OVERRIDE]
+    security_opt: ["no-new-privileges:true"]
+    volumes:
+      # Base de assinaturas atualizada pelo freshclam sobrevive ao restart.
+      - clamav-db:/var/lib/clamav
+    healthcheck:
+      test: ["CMD", "clamdcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
     restart: unless-stopped
 
   web:
@@ -69,3 +107,4 @@ networks:
 
 volumes:
   api-keys:
+  clamav-db:
