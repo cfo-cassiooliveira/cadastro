@@ -1,8 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\..\src\Cadastro.Application\Cadastro.Application.csproj" />
+    <Compile Include="../Shared/InMemoryUserImportStore.cs" Link="Shared/InMemoryUserImportStore.cs" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
   </ItemGroup>
 </Project>

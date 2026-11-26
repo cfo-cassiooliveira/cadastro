@@ -46,6 +46,16 @@ public class CadastroApiFactory : WebApplicationFactory<Program>
         builder.UseSetting("KeycloakAdmin:ClientId", "cadastro");
         builder.UseSetting("KeycloakAdmin:ClientSecret", TestClientSecret);
         builder.UseSetting("Logging:Pseudonymization:Keys:k1", PseudonymizationKey);
+        // Persistência da importação: o DbContext só é registrado (nenhum teste desta factory abre conexão) e a chave é só do processo.
+        builder.UseSetting("ConnectionStrings:ImportDb", "Server=127.0.0.1,9;Database=LegadoUsers;User Id=cadastro_app;Password=test-only;TrustServerCertificate=True");
+        // O relay da outbox só roda nos testes com RabbitMQ real (Infrastructure.Tests); aqui nenhuma conexão é aberta.
+        builder.UseSetting("RabbitMq:Enabled", "false");
+        // Chave HMAC do token do resumo, só deste processo de teste.
+        builder.UseSetting("UserImports:SummaryTokenKey", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
+        // Chave HMAC do token do resumo só deste processo de teste.
+        builder.UseSetting("UserImports:SummaryTokenKey", Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)));
+        builder.UseSetting("PersonalData:Protection:CurrentKeyVersion", "k1");
+        builder.UseSetting("PersonalData:Protection:Keys:k1", PseudonymizationKey);
         builder.ConfigureLogging(logging => logging.AddFakeLogging());
         builder.ConfigureTestServices(services =>
         {

@@ -1,0 +1,235 @@
+<div class="upload">
+  <a class="page-back" routerLink="/imports" i18n>Voltar para os lotes</a>
+  <header class="upload__header">
+    <h1 class="page-title" i18n>Enviar lista de pessoas</h1>
+    <p class="page-lead" i18n>
+      Envie um arquivo CSV com as pessoas que vão receber acesso. Você confere o resumo antes de
+      confirmar; nada é criado até lá.
+    </p>
+  </header>
+
+  @if (cancelled()) {
+    <div class="alert alert--info upload__notice" role="status">
+      <p class="alert__text" i18n>Lote cancelado. Nenhuma pessoa foi criada.</p>
+    </div>
+  }
+
+  @if (problem(); as current) {
+    <div
+      #problemBox
+      class="alert alert--error alert--stack upload__notice"
+      role="alert"
+      tabindex="-1"
+    >
+      <div class="alert__body">
+        <p class="alert__text">{{ current.text }}</p>
+        @if (current.existingBatchId; as batchId) {
+          <p class="alert__detail">
+            <a [routerLink]="['/imports', batchId]" i18n>Ver o lote existente</a>
+          </p>
+        }
+      </div>
+      @if (current.needsOtp) {
+        <button type="button" class="btn btn--primary btn--small" (click)="confirmOtp()" i18n>
+          Confirmar com código
+        </button>
+      }
+    </div>
+    @if (rejectedRows().length > 0) {
+      <section class="surface upload__notice" aria-labelledby="rejected-title">
+        <h2 id="rejected-title" class="surface__title" i18n>Problemas encontrados</h2>
+        <div class="table-scroll" role="region" tabindex="0" aria-labelledby="rejected-title">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th scope="col" i18n>Linha</th>
+                <th scope="col" i18n>Problema</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of rejectedRows(); track $index) {
+                <tr>
+                  <td class="data-table__number">{{ row.line }}</td>
+                  <td class="data-table__reason">{{ row.text }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </section>
+    }
+  }
+
+  @if (summary(); as current) {
+    <article class="panel-card" aria-labelledby="summary-title">
+      <header class="band">
+        <h2 #summaryTitle id="summary-title" class="band__title" tabindex="-1" i18n>
+          Resumo do arquivo
+        </h2>
+        <p class="band__meta" i18n>Aguardando sua confirmação</p>
+      </header>
+      <div class="panel-card__body">
+        <dl class="counts">
+          <div class="counts__item counts__item--valid">
+            <dt i18n>Válidas</dt>
+            <dd>{{ current.validLines }}</dd>
+          </div>
+          <div class="counts__item">
+            <dt i18n>Inválidas</dt>
+            <dd>{{ current.invalidLines }}</dd>
+          </div>
+          <div class="counts__item">
+            <dt i18n>Duplicadas</dt>
+            <dd>{{ current.duplicateLines }}</dd>
+          </div>
+        </dl>
+
+        <p class="upload__explain" i18n>
+          Ao confirmar, cada linha válida vira um acesso novo e a pessoa recebe um e-mail para
+          ativar a conta. Linhas inválidas e duplicadas não são importadas.
+        </p>
+
+        @if (issueRows().length > 0) {
+          <section aria-labelledby="issues-title">
+            <h3 id="issues-title" class="upload__subtitle" i18n>Problemas por linha</h3>
+            @if (current.issuesTruncated) {
+              <p class="upload__hint" i18n>
+                Mostrando os primeiros {{ issueRows().length }} de {{ issueTotal() }} problemas.
+              </p>
+            }
+            <div
+              class="table-scroll upload__issues"
+              role="region"
+              tabindex="0"
+              aria-labelledby="issues-title"
+            >
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th scope="col" i18n>Linha</th>
+                    <th scope="col" i18n>Problema</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (row of issueRows(); track $index) {
+                    <tr>
+                      <td class="data-table__number">{{ row.line }}</td>
+                      <td class="data-table__reason">{{ row.text }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </section>
+        }
+
+        <div class="upload__actions">
+          <button
+            type="button"
+            class="btn btn--primary"
+            [disabled]="working() !== null || current.validLines === 0"
+            (click)="confirm()"
+          >
+            @if (working() === 'confirm') {
+              <span class="spinner" aria-hidden="true"></span>
+              <span i18n>Confirmando…</span>
+            } @else {
+              <span i18n>Confirmar e criar os acessos</span>
+            }
+          </button>
+          <button
+            type="button"
+            class="btn btn--ghost"
+            [disabled]="working() !== null"
+            (click)="cancel()"
+          >
+            @if (working() === 'cancel') {
+              <span i18n>Cancelando…</span>
+            } @else {
+              <span i18n>Cancelar lote</span>
+            }
+          </button>
+        </div>
+      </div>
+    </article>
+  } @else {
+    <div class="upload__layout">
+      <section class="surface" aria-labelledby="form-title">
+        <h2 id="form-title" class="surface__title" i18n>Arquivo da lista</h2>
+        <form
+          class="upload__form"
+          novalidate
+          [attr.aria-busy]="uploading()"
+          (submit)="upload($event)"
+        >
+          <div class="field">
+            <label class="field__label" for="csv-file" i18n>Arquivo CSV</label>
+            <input
+              #fileInput
+              id="csv-file"
+              class="field__control"
+              [class.field__control--invalid]="fileError()"
+              type="file"
+              name="file"
+              accept=".csv,text/csv"
+              [disabled]="uploading()"
+              [attr.aria-invalid]="fileError() ? 'true' : null"
+              [attr.aria-describedby]="fileError() ? 'file-error file-hint' : 'file-hint'"
+              (change)="selectFile($event)"
+            />
+            <p id="file-hint" class="field__hint" i18n>
+              CSV em UTF-8, com até 5 MB e 5.000 linhas.
+            </p>
+            @if (fileLabel(); as label) {
+              <p class="field__hint upload__chosen">{{ label }}</p>
+            }
+            @if (fileError(); as message) {
+              <p id="file-error" class="field__error" role="alert">{{ message }}</p>
+            }
+          </div>
+
+          <button type="submit" class="btn btn--primary" [disabled]="uploading()">
+            @if (uploading()) {
+              <span class="spinner" aria-hidden="true"></span>
+              <span i18n>Verificando o arquivo…</span>
+            } @else {
+              <span i18n>Enviar e conferir</span>
+            }
+          </button>
+          @if (uploading()) {
+            <p class="visually-hidden" role="status" i18n>
+              Verificando o arquivo. Isso pode levar alguns segundos.
+            </p>
+          }
+        </form>
+      </section>
+
+      <section class="surface" aria-labelledby="format-title">
+        <h2 id="format-title" class="surface__title" i18n>Como preparar o arquivo</h2>
+        <ul class="upload__rules">
+          <li i18n>A primeira linha é o cabeçalho, exatamente assim:</li>
+        </ul>
+        <pre
+          class="upload__code"
+          role="region"
+          tabindex="0"
+          aria-label="Cabeçalho do CSV"
+          i18n-aria-label
+        ><code>nome,email,cpf,telefone</code></pre>
+        <ul class="upload__rules">
+          <li i18n>Nome, e-mail e CPF são obrigatórios; o telefone é opcional.</li>
+          <li i18n>O CPF pode ter pontos e hífen. Pessoas repetidas no arquivo são ignoradas.</li>
+          <li i18n>Salve como CSV com codificação UTF-8.</li>
+        </ul>
+        <a
+          class="btn btn--secondary btn--small upload__sample"
+          href="exemplos/usuarios-exemplo.csv"
+          download
+          i18n
+        >
+          Baixar CSV de exemplo
+        </a>
+      </section>
+    </div>
+  }
+</div>

@@ -147,7 +147,7 @@ function keycloakCredentials(userId) {
  * Cria no Keycloak um investigador de teste: role log-investigator e OTP (TOTP) já configurado com o segredo informado.
  * Devolve o id (sub) do usuário. A limpeza é feita por deleteKeycloakUser.
  */
-async function createInvestigator({ login, email, password, otpSecret }) {
+async function createInvestigator({ login, email, password, otpSecret, role: roleName = "log-investigator" }) {
     const headers = { Authorization: `Bearer ${await adminToken()}`, "Content-Type": "application/json" };
     const base = `${config.keycloakUrl}/admin/realms/${REALM}`;
     const otp = {
@@ -170,13 +170,13 @@ async function createInvestigator({ login, email, password, otpSecret }) {
     });
     if (created.status !== 201) throw new Error(`Criação do investigador falhou (HTTP ${created.status})`);
     const id = created.headers.get("location").split("/").pop();
-    const role = await (await fetch(`${base}/roles/log-investigator`, { headers })).json();
+    const role = await (await fetch(`${base}/roles/${roleName}`, { headers })).json();
     const mapped = await fetch(`${base}/users/${id}/role-mappings/realm`, {
         method: "POST",
         headers,
         body: JSON.stringify([role]),
     });
-    if (!mapped.ok) throw new Error(`Atribuição da role log-investigator falhou (HTTP ${mapped.status})`);
+    if (!mapped.ok) throw new Error(`Atribuição da role ${roleName} falhou (HTTP ${mapped.status})`);
     return id;
 }
 

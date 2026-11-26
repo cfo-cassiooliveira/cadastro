@@ -1,0 +1,226 @@
+<div class="detail">
+  <a class="page-back" routerLink="/imports" i18n>Voltar para os lotes</a>
+
+  @if (problem(); as current) {
+    <div
+      #problemBox
+      class="alert alert--error alert--stack detail__notice"
+      role="alert"
+      tabindex="-1"
+    >
+      <div class="alert__body">
+        <p class="alert__text">{{ current.text }}</p>
+      </div>
+      @if (current.needsOtp) {
+        <button type="button" class="btn btn--primary btn--small" (click)="confirmOtp()" i18n>
+          Confirmar com código
+        </button>
+      } @else if (!batch()) {
+        <button type="button" class="btn btn--secondary btn--small" (click)="retry()" i18n>
+          Tentar de novo
+        </button>
+      }
+    </div>
+  }
+
+  <div class="detail__live" role="status">
+    @if (notice(); as current) {
+      <div
+        class="alert detail__notice"
+        [class.alert--success]="current.tone === 'success'"
+        [class.alert--info]="current.tone === 'info'"
+      >
+        <p class="alert__text">{{ current.text }}</p>
+      </div>
+    }
+  </div>
+
+  @if (loading() && !batch()) {
+    <div class="panel-card detail__skeleton" aria-busy="true">
+      <span class="visually-hidden" role="status" i18n>Carregando o lote…</span>
+      <span class="skeleton skeleton--title" aria-hidden="true"></span>
+      <span class="skeleton skeleton--text" aria-hidden="true"></span>
+      <span class="skeleton skeleton--text skeleton--short" aria-hidden="true"></span>
+    </div>
+  } @else if (batch(); as current) {
+    <article class="panel-card" aria-labelledby="batch-title">
+      <header class="band">
+        <h1 id="batch-title" class="band__title" i18n>
+          Lote de {{ current.createdAtUtc | date: 'dd/MM/yyyy HH:mm' }}
+        </h1>
+        <span class="chip" [class]="'chip chip--' + tone(current.status)">{{
+          statusLabel(current.status)
+        }}</span>
+      </header>
+      <div class="panel-card__body">
+        <p class="detail__facts" i18n>
+          Válidas: {{ current.validLines }} · Inválidas: {{ current.invalidLines }} · Duplicadas:
+          {{ current.duplicateLines }}
+        </p>
+
+        @if (current.status === 'AwaitingConfirmation') {
+          <p class="detail__explain" i18n>
+            Este lote ainda não foi confirmado e nenhuma pessoa foi criada. A confirmação só é
+            possível logo após o envio do arquivo: cancele este lote e envie o arquivo de novo.
+          </p>
+          <div class="detail__actions">
+            <button
+              type="button"
+              class="btn btn--ghost"
+              [disabled]="busy() !== null"
+              (click)="cancel()"
+            >
+              @if (busy() === 'cancel') {
+                <span i18n>Cancelando…</span>
+              } @else {
+                <span i18n>Cancelar lote</span>
+              }
+            </button>
+          </div>
+        } @else if (current.status === 'Cancelled') {
+          <p class="detail__explain" i18n>Este lote foi cancelado. Nenhuma pessoa foi criada.</p>
+          <div class="detail__actions">
+            <a class="btn btn--secondary" routerLink="/imports/new" i18n>Enviar a lista de novo</a>
+          </div>
+        } @else {
+          <app-import-progress [counts]="current.progress" [live]="true" />
+          @if (processing()) {
+            <p class="detail__hint" i18n>
+              Processando. A tela atualiza sozinha a cada poucos segundos; você pode sair e voltar
+              depois.
+            </p>
+          }
+          <div class="detail__actions">
+            <button
+              type="button"
+              class="btn btn--secondary"
+              [disabled]="busy() !== null"
+              (click)="downloadReport()"
+            >
+              @if (busy() === 'report') {
+                <span i18n>Gerando relatório…</span>
+              } @else {
+                <span i18n>Baixar relatório CSV</span>
+              }
+            </button>
+            @if (canReprocess()) {
+              <button
+                type="button"
+                class="btn btn--primary"
+                [disabled]="busy() !== null"
+                (click)="reprocessErrors()"
+              >
+                @if (busy() === 'reprocess') {
+                  <span i18n>Reprocessando…</span>
+                } @else {
+                  <span i18n>Reprocessar linhas com erro</span>
+                }
+              </button>
+            }
+          </div>
+        }
+      </div>
+    </article>
+
+    @if (showLines()) {
+      <section class="surface detail__lines" aria-labelledby="lines-title">
+        <div class="detail__lines-head">
+          <h2 id="lines-title" class="surface__title" i18n>Linhas do lote</h2>
+          <div class="detail__filter">
+            <label class="detail__filter-label" for="line-filter" i18n>Mostrar</label>
+            <select id="line-filter" class="detail__select" (change)="selectFilter($event)">
+              @for (option of filters; track option.value) {
+                <option [value]="option.value" [selected]="option.value === filter()">
+                  {{ option.label }}
+                </option>
+              }
+            </select>
+          </div>
+        </div>
+
+        @if (linesLoading() && !lines()) {
+          <div aria-busy="true">
+            <span class="visually-hidden" role="status" i18n>Carregando as linhas…</span>
+            <span class="skeleton skeleton--text" aria-hidden="true"></span>
+          </div>
+        } @else if (lines(); as page) {
+          @if (page.items.length === 0) {
+            <p class="state__text" i18n>Nenhuma linha neste filtro.</p>
+          } @else {
+            <div
+              class="table-scroll"
+              role="region"
+              tabindex="0"
+              aria-labelledby="lines-title"
+              [attr.aria-busy]="linesLoading()"
+            >
+              <table class="data-table data-table--cards">
+                <thead>
+                  <tr>
+                    <th scope="col" i18n>Linha</th>
+                    <th scope="col" i18n>Estado</th>
+                    <th scope="col" i18n>Detalhe</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (line of page.items; track line.id) {
+                    <tr>
+                      <td class="data-table__number" data-label="Linha" i18n-data-label>
+                        {{ line.lineNumber }}
+                      </td>
+                      <td>
+                        <span class="chip" [class]="'chip chip--' + lineToneOf(line.status)">{{
+                          lineLabel(line.status)
+                        }}</span>
+                      </td>
+                      <td class="data-table__reason">
+                        {{ lineReason(line) }}
+                        @if (legacyNote(line); as note) {
+                          <span class="detail__muted">{{ note }}</span>
+                        }
+                        @if (line.status === 'Error' && line.failureReason) {
+                          <small class="data-table__code" i18n
+                            >Código para o suporte: {{ line.failureReason }}</small
+                          >
+                        }
+                        @if (line.reprocessCount > 0) {
+                          <span class="detail__muted" i18n
+                            >Reprocessada {{ line.reprocessCount }}x.</span
+                          >
+                        }
+                        @if (canReprocessLine(line)) {
+                          <button
+                            type="button"
+                            class="btn btn--ghost btn--small"
+                            [disabled]="reprocessingLine() !== null"
+                            [attr.aria-label]="'Reprocessar a linha ' + line.lineNumber"
+                            i18n-aria-label
+                            (click)="reprocessLine(line)"
+                          >
+                            @if (reprocessingLine() === line.id) {
+                              <span i18n>Reprocessando…</span>
+                            } @else {
+                              <span i18n>Reprocessar</span>
+                            }
+                          </button>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            <app-pagination
+              label="Paginação das linhas"
+              i18n-label
+              [page]="linesPage()"
+              [pageSize]="pageSize"
+              [totalCount]="page.totalCount"
+              (pageChange)="loadLines($event)"
+            />
+          }
+        }
+      </section>
+    }
+  }
+</div>

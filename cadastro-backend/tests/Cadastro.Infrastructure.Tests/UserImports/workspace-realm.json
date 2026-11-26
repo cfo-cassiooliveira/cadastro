@@ -1,0 +1,73 @@
+{
+  "realm": "workspace",
+  "enabled": true,
+  "sslRequired": "none",
+  "loginWithEmailAllowed": true,
+  "duplicateEmailsAllowed": false,
+  "resetPasswordAllowed": true,
+  "accessTokenLifespan": 600,
+  "smtpServer": {
+    "host": "mailpit",
+    "port": "1025",
+    "from": "no-reply@example.test",
+    "fromDisplayName": "Workspace",
+    "auth": "false",
+    "ssl": "false",
+    "starttls": "false"
+  },
+  "roles": {
+    "realm": [
+      { "name": "user" },
+      { "name": "offline_access" },
+      { "name": "uma_authorization" },
+      {
+        "name": "default-roles-workspace",
+        "composite": true,
+        "composites": { "realm": ["offline_access", "uma_authorization", "user"] }
+      }
+    ]
+  },
+  "defaultRole": { "name": "default-roles-workspace", "composite": true, "clientRole": false },
+  "components": {
+    "org.keycloak.userprofile.UserProfileProvider": [
+      {
+        "providerId": "declarative-user-profile",
+        "subComponents": {},
+        "config": {
+          "kc.user.profile.config": [
+            "{\"unmanagedAttributePolicy\":\"ADMIN_EDIT\",\"attributes\":[{\"name\":\"username\",\"validations\":{\"length\":{\"min\":4,\"max\":30},\"pattern\":{\"pattern\":\"^[a-z0-9._-]+$\"}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]}},{\"name\":\"email\",\"validations\":{\"email\":{},\"length\":{\"max\":255}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]}},{\"name\":\"firstName\",\"validations\":{\"length\":{\"max\":100},\"person-name-prohibited-characters\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]}},{\"name\":\"lastName\",\"validations\":{\"length\":{\"max\":150},\"person-name-prohibited-characters\":{}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]}},{\"name\":\"mobilePhone\",\"validations\":{\"pattern\":{\"pattern\":\"^\\\\+55\\\\d{11}$\"}},\"permissions\":{\"view\":[\"admin\",\"user\"],\"edit\":[\"admin\"]}},{\"name\":\"importLineId\",\"validations\":{\"length\":{\"max\":64},\"pattern\":{\"pattern\":\"^[0-9A-Za-z-]+$\"}},\"permissions\":{\"view\":[\"admin\"],\"edit\":[\"admin\"]}}]}"
+          ]
+        }
+      }
+    ]
+  },
+  "clients": [
+    {
+      "clientId": "cadastro-importer",
+      "enabled": true,
+      "publicClient": false,
+      "secret": "test-only-importer-secret",
+      "protocol": "openid-connect",
+      "standardFlowEnabled": false,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": true,
+      "fullScopeAllowed": false,
+      "redirectUris": [],
+      "webOrigins": [],
+      "defaultClientScopes": ["basic", "acr", "roles"],
+      "optionalClientScopes": ["kc-admin-api"]
+    }
+  ],
+  "clientScopeMappings": {
+    "realm-management": [{ "client": "cadastro-importer", "roles": ["view-users", "manage-users"] }]
+  },
+  "users": [
+    {
+      "username": "service-account-cadastro-importer",
+      "enabled": true,
+      "serviceAccountClientId": "cadastro-importer",
+      "clientRoles": { "realm-management": ["view-users", "manage-users"] }
+    }
+  ]
+}

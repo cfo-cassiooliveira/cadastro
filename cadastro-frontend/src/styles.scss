@@ -1,6 +1,7 @@
 /* Estilos globais: tokens, fonte, base acessível e utilitários. Componentes ficam nos estilos de cada tela. */
 @use 'styles/tokens';
 @use 'styles/ui';
+@use 'styles/imports';
 
 @font-face {
   font-family: Manrope;

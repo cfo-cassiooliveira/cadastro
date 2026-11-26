@@ -1,0 +1,23 @@
+@if (totalPages() > 1) {
+  <nav class="pager" [attr.aria-label]="label()">
+    <button
+      type="button"
+      class="btn btn--ghost btn--small"
+      [disabled]="!hasPrevious()"
+      (click)="go(page() - 1)"
+      i18n
+    >
+      Anterior
+    </button>
+    <p class="pager__position" i18n>Página {{ page() }} de {{ totalPages() }}</p>
+    <button
+      type="button"
+      class="btn btn--ghost btn--small"
+      [disabled]="!hasNext()"
+      (click)="go(page() + 1)"
+      i18n
+    >
+      Próxima
+    </button>
+  </nav>
+}

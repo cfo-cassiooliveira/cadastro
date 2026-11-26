@@ -1,3 +1,4 @@
+using Cadastro.Tests.Shared;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
@@ -32,7 +33,12 @@ public sealed class KeycloakApiFactory : CadastroApiFactory, IAsyncLifetime
     }
 
     /// <summary>Sobe o Keycloak antes do primeiro teste da coleção.</summary>
-    public async ValueTask InitializeAsync() => await _keycloak.StartAsync(TestContext.Current.CancellationToken);
+    public async ValueTask InitializeAsync()
+    {
+        // Um container por vez entre os projetos de teste (evita a disputa de recursos do Docker).
+        using var startLock = await ContainerStartLock.AcquireAsync(TestContext.Current.CancellationToken);
+        await _keycloak.StartAsync(TestContext.Current.CancellationToken);
+    }
 
     /// <inheritdoc />
     public override async ValueTask DisposeAsync()

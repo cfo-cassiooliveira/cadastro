@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Cadastro.Domain\Cadastro.Domain.csproj" />
+  </ItemGroup>
+</Project>

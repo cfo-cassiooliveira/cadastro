@@ -63,6 +63,53 @@
   `app/log-search/`, guard `logSearchGuard`, que registra o acesso negado via `GET /api/v1/log-search/access` antes de ir a `/forbidden`) oferece o botão "Confirmar com código" que abre
   `/bff/login?acr_values=otp&returnUrl=%2Flog-search` quando o 403 indica OTP ausente ou vencido; ao confirmar o OTP, o
   formulário volta vazio (o valor é descartado antes de sair da tela); o valor pesquisado nunca vai para URL, storage, `AppLogger` nem console (README).
+- **Importação em lote (spec 002 do `../rabbitmq`, C2-C4)**: `/api/v1/user-imports` (policy `user-imports:manage` = role
+  `user-importer` + `acr=otp` com `auth_time` <= 5 min; 403 vai ao log como Warning `user_import_access_denied` só com
+  `actor_id`, pelo `AccessDeniedAuditHandler`). Rotas: `POST /` (multipart, campo `file`; 201 com resumo, 409 `import.duplicate_file`
+  com o lote existente, 413/415/422/503 em Problem Details com `code`), `GET /`, `GET /{id}`, `GET /{id}/lines`, `GET /{id}/report`
+  (CSV sem dado pessoal), `POST /{id}/confirm` (corpo `{ summaryToken }`: HMAC-SHA256 com chave do servidor `UserImports:SummaryTokenKey` sobre hash, contagens, `batchId` e `sub` do autor, devolvido só no 201 do upload; a API não sobe sem a chave),
+  `POST /{id}/cancel`, `POST /{id}/lines/{lineId}/reprocess`, `POST /{id}/reprocess-errors`. **Dono do lote**: só o criador (`sub`) confirma, cancela ou reprocessa (403 `import.not_owner` + Warning); a leitura é aberta a todo `user-importer`. Todo POST exige antiforgery;
+  o upload tem rate limit por `sub` (`RateLimiting:UserImportsPermitsPerHour`, padrão 30). Upload em streaming (`MultipartReader`
+  para arquivo temporário em `UserImports:TempDirectory` (padrão: temporário do sistema; `/tmp` é tmpfs no compose) apagado ao fechar, inclusive em erro; corpo acima do limite = 413; limite 5 MB também no Kestrel e em `FormOptions`), ClamAV fail-closed
+  (`IVirusScanner` -> `ClamdVirusScanner`, INSTREAM, timeout; indisponível/erro = 503 `scanner.unavailable`), CSV (relatório com escape de injeção de fórmula) e CSV de entrada UTF-8 estrito lido em blocos, com cabeçalho
+  exato `nome,email,cpf,telefone`, máx. 5.000 linhas, CPF com dígitos verificadores, duplicados por e-mail normalizado e CPF
+  (extrator atrás de `IUserExtractor`; no código usamos o nome em inglês do `IExtratorDeUsuarios` da spec). Linha inválida ou
+  duplicada **não é gravada** (só contagem e `issues` com número da linha e código, até 200); linha válida grava os dados
+  cifrados (contexto AES `{lineId}:{campo}`). Confirmar grava 1 `outbox_messages` por pessoa na **mesma transação** que muda
+  o lote (envelope com `data={batchId,lineId}`, UUIDv7, `traceparent` do pedido); reprocessar também enfileira nova mensagem.
+- **Relay da outbox (C4)**: `OutboxRelayService` (BackgroundService, só com `RabbitMq:Enabled`) -> `OutboxRelay` lê lotes
+  pequenos com `UPDLOCK, READPAST` numa transação, publica por `IOutboxPublisher` (`RabbitMqOutboxPublisher`: uma `IConnection`
+  singleton `cadastro-api` com recovery, canal com confirms, persistente, `mandatory`, exchange `cadastro.events`) e só marca
+  publicada após o confirm; falha/nack/return mantém pendente com `NextAttemptAtUtc` (backoff exponencial com jitter). Crash entre
+  confirm e commit republica (consumidor idempotente). `cadastro-app` não tem configure: **nunca** declarar exchange/fila/binding
+  (teste varre o código). Credencial: `RabbitMq__Password` <- `RABBITMQ_CADASTRO_APP_PASSWORD` (`generate-env.sh` copia do
+  `../rabbitmq/.env`); rede `workspace-messaging` por `docker-compose.messaging.yml`. O broker aparece só no `/health`
+  (tag `external`, `Degraded`), nunca no `/health/ready`. O publicador recria a conexão fechada depois de `RabbitMq:ConnectionRecreateAfterSeconds` (padrão 60), sem vazar a antiga. Riscos aceitos e pendências: ADR-0007. ClamAV: serviço `clamav` do compose (imagem por tag + digest, `mem_limit`, sem porta publicada).
+- **Consumidor das linhas (C5a-C5c)**: `UserImportLineConsumerService` (BackgroundService no mesmo processo da API, ADR-0009; só com
+  `ImportConsumer:Enabled`, ligado por `docker-compose.import.yml`) consome `cadastro.user-import-lines` (conexão `cadastro-consumer`
+  com recovery, canal próprio, `BasicQos` 10, ack manual **depois** do commit; segundo canal com confirms para `cadastro.retry`).
+  Por entrega: `LineDeliveryProcessor` (continua o `traceparent`) -> `IProcessUserImportLineHandler`: checa a inbox, decifra os dados,
+  `KeycloakUserProvisioner` (client `cadastro-importer`, token em cache, `AddStandardResilienceHandler` 10 s/30 s, limite de 10
+  criações/s por `CreationRateLimiter`) busca por `importLineId` e por e-mail exato, cria **sem senha** (`UPDATE_PASSWORD`, atributo
+  `importLineId`, username não pessoal `imp.<24 hex>`; o login real é o e-mail) e chama `execute-actions-email?lifespan=259200`
+  (72 h, **sempre** com o parâmetro). Achado por `importLineId` = retomada de tentativa interrompida (volta como Created e reenvia o
+  e-mail); achado só por e-mail = `AlreadyExists` (nada criado). Marcação no Legado (só quando Created, antes de apagar os dados):
+  `LegadoUserDirectory` (HTTPS só com a CA do Legado `Legado:CaCertificatePath`, HMAC `X-Legado-Signature` com nonce novo por
+  tentativa porque a assinatura fica DENTRO do pipeline de resiliência, `user-lookups` + `PUT users/{id}/migration`) e
+  `LegacyMarkDecision`: um candidato de e-mail exato = `Marked`; zero = `NoCandidate`; vários = `Ambiguous` (aviso); API fora =
+  `Failed` (não desfaz o Keycloak nem falha a linha). O contrato atual do Legado devolve no máximo um candidato; a regra de vários já está pronta.
+  Efeito, contadores do lote e inbox gravam na **mesma transação** (`UserImportLineCompletion`, retry em `DbUpdateConcurrencyException`
+  recarregando; unique da inbox = duplicata, ack sem repetir). Falha transitória (Keycloak 5xx/timeout/429/401/403/circuito aberto) ->
+  republica em `cadastro.retry` (mesmo `messageId`/corpo, header `x-retry-count` +1, `traceparent`) e ack; após 5 ciclos
+  (`ImportRetryPolicy`) a linha vai a `Error` (`processing.retries_exhausted`) e `BasicNack(requeue:false)` leva à DLQ. Falha
+  definitiva (400/422/409 de outra pessoa, mensagem inválida, linha inexistente, dado ilegível) -> linha `Error` com código + nack
+  para a DLQ; dados pessoais ficam para o reprocessamento. O consumidor **nunca** declara topologia nem publica em `cadastro.dlx`.
+  Falhas de credencial do importador (400/401/403) são operacionais: retry sem consumir ciclo (ADR-0009); falha ao publicar na retry
+  espera com backoff e, após 3 vezes, marca a linha `Error` antes de ir à DLQ; reenvio do e-mail só com `UPDATE_PASSWORD` pendente.
+  Nome com caractere do `person-name-prohibited-characters` do Keycloak (`<>&"$%!#?§;*~/\|^=[]{}()`) vira `row.name_invalid` já no upload.
+  Categoria `Microsoft.EntityFrameworkCore` em Warning no `appsettings.json` (o polling do relay gerava dezenas de milhares de linhas Information).
+  Segredos: `KC_CADASTRO_IMPORTER_CLIENT_SECRET` e `LEGADO_INTERNAL_CADASTRO_KEY` (`generate-env.sh` copia do `../keycloak` e do
+  `../legado-cadastro-usuarios`). Testes: `Cadastro.Infrastructure.Tests/UserImports/` (RabbitMQ + Keycloak + Mailpit + SQL Server reais).
 - `Bff:LocalSecureContext` só no compose local (http://localhost é contexto seguro para o navegador).
 - Log **sem dado pessoal** (Constituição, Art. IV.6). Só um dado **aprovado em ADR** vai ao log, e apenas como
   campo estruturado com o nome do tipo (`{Cpf}`, `{Cnpj}`, `{Phone}`/`{MobilePhone}`, `{UserName}`, `{Email}`) no

@@ -1,7 +1,14 @@
 using Cadastro.Application.LogSearch;
+using Cadastro.Application.UserImports;
 using Cadastro.Application.Users;
+using Cadastro.Infrastructure.Antivirus;
 using Cadastro.Infrastructure.Keycloak;
 using Cadastro.Infrastructure.Logging;
+using Cadastro.Infrastructure.Messaging;
+using Cadastro.Infrastructure.Persistence;
+using Cadastro.Infrastructure.Protection;
+using Cadastro.Infrastructure.UserImports;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -14,6 +21,9 @@ namespace Cadastro.Infrastructure;
 /// <summary>Registro dos adaptadores de infraestrutura (Keycloak e pseudonimização dos logs).</summary>
 public static class DependencyInjection
 {
+    /// <summary>Nome da connection string do runtime (<c>ConnectionStrings:ImportDb</c>, login <c>cadastro_app</c>).</summary>
+    public const string ImportDbConnectionName = "ImportDb";
+
     // Uma tentativa lenta não pode segurar a requisição do usuário: 3 s por tentativa, 10 s no total (Art. VII.1).
     private static readonly TimeSpan AttemptTimeout = TimeSpan.FromSeconds(3);
     private static readonly TimeSpan TotalTimeout = TimeSpan.FromSeconds(10);
@@ -33,6 +43,69 @@ public static class DependencyInjection
         services.AddSingleton<KeycloakServiceTokenProvider>();
         services.AddHttpClient<IIdentityUserReadService, KeycloakAdminClient>(ConfigureBaseAddress)
             .AddStandardResilienceHandler(ConfigureResilience);
+        return services;
+    }
+
+    /// <summary>
+    /// Registra a persistência do esquema <c>import</c> (login <c>cadastro_app</c>, connection string <c>ImportDb</c>) e a
+    /// cifra AES-256-GCM dos dados pessoais. Sem connection string ou sem a chave atual a API não sobe (fail fast, Art. IV.4).
+    /// </summary>
+    public static IServiceCollection AddImportPersistence(this IServiceCollection services, IConfiguration configuration)
+    {
+        ArgumentNullException.ThrowIfNull(configuration);
+        var connectionString = configuration.GetConnectionString(ImportDbConnectionName);
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException($"Connection string '{ImportDbConnectionName}' is not configured.");
+        }
+
+        services.AddDbContext<CadastroDbContext>(options => options.UseSqlServer(connectionString, CadastroDbContext.ConfigureSqlServer));
+        services.AddOptions<PersonalDataProtectionOptions>()
+            .Bind(configuration.GetSection(PersonalDataProtectionOptions.SectionName))
+            .ValidateOnStart();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<PersonalDataProtectionOptions>, PersonalDataProtectionOptionsValidator>());
+        services.TryAddSingleton<IPersonalDataProtector, AesGcmPersonalDataProtector>();
+        services.AddScoped<IUserImportWriter, UserImportWriter>();
+        services.AddScoped<IUserImportReadService, UserImportReadService>();
+        services.AddOptions<ImportSummaryOptions>().Bind(configuration.GetSection(ImportSummaryOptions.SectionName)).ValidateOnStart();
+        services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<ImportSummaryOptions>, ImportSummaryOptionsValidator>());
+        services.TryAddSingleton<IImportSummarySigner>(sp =>
+        {
+            ImportSummaryOptionsValidator.TryDecode(sp.GetRequiredService<IOptions<ImportSummaryOptions>>().Value.SummaryTokenKey, out var key);
+            return new HmacImportSummarySigner(key);
+        });
+        services.AddImportAntivirus(configuration);
+        services.AddImportMessaging(configuration);
+        services.TryAddSingleton(TimeProvider.System);
+        return services;
+    }
+
+    /// <summary>Registra o cliente do ClamAV (clamd por INSTREAM, fail-closed) atrás da porta <see cref="IVirusScanner"/>.</summary>
+    private static IServiceCollection AddImportAntivirus(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<ClamAvOptions>().Bind(configuration.GetSection(ClamAvOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
+        services.TryAddSingleton<IVirusScanner, ClamdVirusScanner>();
+        return services;
+    }
+
+    /// <summary>
+    /// Registra o publicador RabbitMQ (conexão preguiçosa, singleton) e, com <c>RabbitMq:Enabled</c>, o relay da outbox em segundo plano.
+    /// </summary>
+    private static IServiceCollection AddImportMessaging(this IServiceCollection services, IConfiguration configuration)
+    {
+        services.AddOptions<RabbitMqOptions>().Bind(configuration.GetSection(RabbitMqOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
+        services.AddSingleton<RabbitMqOutboxPublisher>();
+        services.AddSingleton<IOutboxPublisher>(sp => sp.GetRequiredService<RabbitMqOutboxPublisher>());
+        if (configuration.GetValue("RabbitMq:Enabled", true))
+        {
+            // Sem senha o relay não consegue autenticar: falha na subida em vez de acumular erros em silêncio.
+            services.AddOptions<RabbitMqOptions>().Validate(o => !string.IsNullOrWhiteSpace(o.Password), "RabbitMq:Password is required when the relay is enabled.");
+            services.AddScoped<OutboxRelay>();
+            services.AddHostedService<OutboxRelayService>();
+        }
+
+        services.AddImportConsumer(configuration);
+
         return services;
     }
 
@@ -65,10 +138,19 @@ public static class DependencyInjection
         return builder.AddCheck<KeycloakHealthCheck>("keycloak", HealthStatus.Unhealthy, tags);
     }
 
-    private static void ConfigureBaseAddress(IServiceProvider services, HttpClient client) =>
+    /// <summary>
+    /// Sonda do broker (publicador conectado) com as tags do composition root. Não é obrigatória: falha como <c>Degraded</c>.
+    /// </summary>
+    public static IHealthChecksBuilder AddBrokerHealthCheck(this IHealthChecksBuilder builder, params string[] tags)
+    {
+        ArgumentNullException.ThrowIfNull(builder);
+        return builder.AddCheck<RabbitMqHealthCheck>("rabbitmq", HealthStatus.Degraded, tags);
+    }
+
+    internal static void ConfigureBaseAddress(IServiceProvider services, HttpClient client) =>
         client.BaseAddress = services.GetRequiredService<IOptions<KeycloakAdminOptions>>().Value.BaseUrl;
 
-    private static void ConfigureResilience(HttpStandardResilienceOptions options)
+    internal static void ConfigureResilience(HttpStandardResilienceOptions options)
     {
         options.AttemptTimeout.Timeout = AttemptTimeout;
         options.TotalRequestTimeout.Timeout = TotalTimeout;

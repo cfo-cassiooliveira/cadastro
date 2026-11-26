@@ -1,0 +1,84 @@
+<div class="batches">
+  <header class="page-head">
+    <div>
+      <h1 class="page-title" i18n>Importações em lote</h1>
+      <p class="page-lead" i18n>
+        Acompanhe os arquivos enviados e quantas pessoas já receberam acesso.
+      </p>
+    </div>
+    <a class="btn btn--primary" routerLink="/imports/new" i18n>Enviar lista</a>
+  </header>
+
+  @if (problem(); as current) {
+    <div class="alert alert--error alert--stack batches__notice" role="alert">
+      <div class="alert__body">
+        <p class="alert__text">{{ current.text }}</p>
+      </div>
+      @if (current.needsOtp) {
+        <button type="button" class="btn btn--primary btn--small" (click)="confirmOtp()" i18n>
+          Confirmar com código
+        </button>
+      } @else {
+        <button type="button" class="btn btn--secondary btn--small" (click)="retry()" i18n>
+          Tentar de novo
+        </button>
+      }
+    </div>
+  }
+
+  @if (loading() && !data()) {
+    <div class="batches__list" aria-busy="true">
+      <span class="visually-hidden" role="status" i18n>Carregando os lotes…</span>
+      @for (placeholder of [1, 2, 3]; track placeholder) {
+        <div class="panel-card batches__skeleton" aria-hidden="true">
+          <span class="skeleton skeleton--title"></span>
+          <span class="skeleton skeleton--text"></span>
+          <span class="skeleton skeleton--text skeleton--short"></span>
+        </div>
+      }
+    </div>
+  } @else if (data(); as current) {
+    @if (current.items.length === 0) {
+      <div class="state">
+        <h2 class="state__title" i18n>Nenhum lote ainda</h2>
+        <p class="state__text" i18n>
+          Envie um arquivo CSV com as pessoas que devem receber acesso. Ele aparece aqui para você
+          acompanhar.
+        </p>
+        <a class="btn btn--primary" routerLink="/imports/new" i18n>Enviar primeira lista</a>
+      </div>
+    } @else {
+      <ul class="batches__list" [attr.aria-busy]="loading()">
+        @for (batch of current.items; track batch.id) {
+          <li class="panel-card batch">
+            <div class="batch__head">
+              <h2 class="batch__title">
+                <a [routerLink]="['/imports', batch.id]" i18n>
+                  Lote de {{ batch.createdAtUtc | date: 'dd/MM/yyyy HH:mm' }}
+                </a>
+              </h2>
+              <span class="chip" [class]="'chip chip--' + tone(batch.status)">{{
+                statusLabel(batch.status)
+              }}</span>
+            </div>
+            <p class="batch__facts" i18n>
+              Válidas: {{ batch.validLines }} · Inválidas: {{ batch.invalidLines }} · Duplicadas:
+              {{ batch.duplicateLines }}
+            </p>
+            @if (batch.status !== 'AwaitingConfirmation' && batch.status !== 'Cancelled') {
+              <app-import-progress [counts]="batch.progress" />
+            }
+          </li>
+        }
+      </ul>
+      <app-pagination
+        label="Paginação dos lotes"
+        i18n-label
+        [page]="page()"
+        [pageSize]="pageSize"
+        [totalCount]="current.totalCount"
+        (pageChange)="load($event)"
+      />
+    }
+  }
+</div>

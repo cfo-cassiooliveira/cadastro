@@ -44,6 +44,16 @@
             >Pesquisa em logs</a
           >
         }
+        @if (canImportUsers()) {
+          <a
+            class="nav__link"
+            routerLink="/imports"
+            routerLinkActive="nav__link--active"
+            ariaCurrentWhenActive="page"
+            i18n
+            >Importações</a
+          >
+        }
         <span class="nav__user">
           <span class="visually-hidden" i18n>Conectado como </span>{{ auth.user().userName }}
         </span>

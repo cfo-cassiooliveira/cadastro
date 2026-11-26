@@ -30,7 +30,7 @@ internal static class LogSearchEndpoints
             .ProducesProblem(StatusCodes.Status429TooManyRequests);
 
         // Sem corpo nem antiforgery: não muda estado nem recebe dado digitado. Serve para a tela registrar o acesso negado
-        // (o 403 passa pelo LogSearchAccessAuditHandler, que loga log_search_access_denied). O rate limit evita inundar a trilha.
+        // (o 403 passa pelo AccessDeniedAuditHandler, que loga log_search_access_denied). O rate limit evita inundar a trilha.
         group.MapGet("/access", CheckAccess)
             .WithSummary("Checks whether the session may use log search; a 403 is audited as an access denial.")
             .RequireAuthorization(BffAuthenticationSetup.LogsInvestigatePolicy)

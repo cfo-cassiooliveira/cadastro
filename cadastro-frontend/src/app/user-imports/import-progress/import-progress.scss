@@ -1,0 +1,68 @@
+.progress {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.progress__summary {
+  margin: 0;
+  font-weight: 700;
+  color: var(--ws-indigo);
+}
+
+.progress__bar {
+  display: flex;
+  gap: 2px;
+  height: 0.875rem;
+  overflow: hidden;
+  background: var(--skeleton-base);
+  border-radius: 999px;
+}
+
+.progress__segment {
+  min-width: 4px;
+  height: 100%;
+}
+
+/* Tons com 3:1 ou mais contra a trilha clara (WCAG 1.4.11). */
+.progress__segment--created {
+  background: var(--success-text);
+}
+
+.progress__segment--already-exists {
+  background: var(--primary);
+}
+
+.progress__segment--error {
+  background: var(--danger-text);
+}
+
+.progress__segment--pending {
+  background: var(--border-strong);
+}
+
+.progress__segment--cancelled {
+  background: var(--text-muted);
+}
+
+.progress__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.progress__legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.9375rem;
+}
+
+.progress__swatch {
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  border-radius: 3px;
+}

@@ -1,0 +1,305 @@
+/* Estilos compartilhados pelas telas de importação em lote: cabeçalho de página, painel, selo de estado, tabela de dados. */
+@use 'breakpoints' as bp;
+
+.page-title {
+  margin: 0 0 var(--space-2);
+  font-size: clamp(1.75rem, 1.5rem + 1vw, 2.25rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: var(--ws-indigo);
+  overflow-wrap: anywhere;
+}
+
+.page-lead {
+  max-width: 62ch;
+  margin: 0 0 var(--space-6);
+  color: var(--text-muted);
+}
+
+.page-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  margin-bottom: var(--space-6);
+}
+
+.page-head .page-lead {
+  margin: 0;
+}
+
+.page-back {
+  display: inline-block;
+  margin-bottom: var(--space-3);
+  font-weight: 600;
+}
+
+.surface {
+  padding: var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.surface__title {
+  margin: 0 0 var(--space-4);
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: var(--ws-indigo);
+}
+
+.stack {
+  display: grid;
+  gap: var(--space-6);
+}
+
+/* Faixa índigo com linha em água: a mesma assinatura do cartão de identidade, usada no cabeçalho de lote e no resumo. */
+.band {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding: var(--space-4) var(--space-6);
+  color: var(--text-on-primary);
+  background: var(--ws-indigo);
+  border-bottom: 6px solid var(--ws-aqua);
+}
+
+.band__title {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 800;
+  overflow-wrap: anywhere;
+}
+
+.band__meta {
+  margin: 0;
+  color: var(--band-text-muted);
+  font-weight: 600;
+}
+
+.panel-card {
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+}
+
+.panel-card__body {
+  display: grid;
+  gap: var(--space-4);
+  padding: var(--space-6);
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  padding: var(--space-1) var(--space-3);
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+  border: 1px solid transparent;
+  border-radius: 999px;
+}
+
+.chip--success {
+  color: var(--success-text);
+  background: var(--success-soft);
+  border-color: var(--success-text);
+}
+
+.chip--danger {
+  color: var(--danger-text);
+  background: var(--danger-soft);
+  border-color: var(--danger-text);
+}
+
+.chip--info {
+  color: var(--ws-indigo);
+  background: var(--primary-soft);
+  border-color: var(--primary);
+}
+
+.chip--neutral {
+  color: var(--text-muted);
+  background: var(--background);
+  border-color: var(--border-strong);
+}
+
+.state {
+  display: grid;
+  gap: var(--space-3);
+  justify-items: start;
+  padding: var(--space-6);
+  background: var(--surface);
+  border: 2px dashed var(--border-strong);
+  border-radius: var(--radius);
+}
+
+.state__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 800;
+  color: var(--ws-indigo);
+}
+
+.state__text {
+  margin: 0;
+  max-width: 60ch;
+  color: var(--text-muted);
+}
+
+.alert--stack {
+  flex-wrap: wrap;
+}
+
+.alert__body {
+  display: grid;
+  flex: 1 1 18rem;
+  gap: var(--space-1);
+}
+
+.alert__detail {
+  margin: 0;
+  font-weight: 500;
+}
+
+.table-scroll {
+  position: relative;
+  overflow-x: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+
+.data-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--surface);
+}
+
+.data-table caption {
+  padding: var(--space-3) var(--space-4);
+  font-weight: 700;
+  text-align: left;
+  color: var(--ws-indigo);
+}
+
+.data-table th,
+.data-table td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  vertical-align: top;
+  border-top: 1px solid var(--border);
+}
+
+.data-table th {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  background: var(--background);
+}
+
+.data-table__reason {
+  min-width: 9rem;
+  overflow-wrap: anywhere;
+}
+
+.data-table__number {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+@media (min-width: bp.$md) {
+  .band {
+    padding-inline: var(--space-6);
+  }
+}
+
+.data-table__reason .btn {
+  display: flex;
+  margin-top: var(--space-2);
+}
+
+/* Mobile: respiro menor para as tabelas caberem em 320 px sem rolagem interna. */
+@media (width < 48rem) {
+  .surface {
+    padding: var(--space-4);
+  }
+
+  .data-table th,
+  .data-table td {
+    padding: var(--space-2) var(--space-3);
+  }
+
+  .data-table__reason {
+    min-width: 0;
+  }
+}
+
+.data-table__code {
+  display: block;
+  margin-top: var(--space-1);
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}
+
+.data-table .btn {
+  white-space: nowrap;
+}
+
+/* Mobile: a tabela de linhas vira um cartão por linha (nada de coluna estreita quebrando palavra ou botão). */
+@media (width < 48rem) {
+  .data-table--cards thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .data-table--cards,
+  .data-table--cards tbody {
+    display: block;
+  }
+
+  .data-table--cards tr {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    align-items: center;
+    gap: var(--space-2) var(--space-3);
+    padding: var(--space-3);
+    border-top: 1px solid var(--border);
+  }
+
+  .data-table--cards tr:first-child {
+    border-top: 0;
+  }
+
+  .data-table--cards td {
+    padding: 0;
+    border: 0;
+  }
+
+  .data-table--cards .data-table__number::before {
+    content: attr(data-label) ' ';
+    font-weight: 400;
+    color: var(--text-muted);
+  }
+
+  .data-table--cards .data-table__number {
+    font-weight: 800;
+  }
+
+  .data-table--cards .data-table__reason {
+    grid-column: 1 / -1;
+  }
+
+  .data-table--cards .data-table__reason .btn {
+    width: 100%;
+  }
+}
