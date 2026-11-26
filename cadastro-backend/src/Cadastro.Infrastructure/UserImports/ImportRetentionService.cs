@@ -13,6 +13,8 @@ namespace Cadastro.Infrastructure.UserImports;
 internal sealed partial class ImportRetentionService(
     IServiceScopeFactory scopeFactory, IOptions<ImportRetentionOptions> options, ILogger<ImportRetentionService> logger) : BackgroundService
 {
+    private const int AbandonedBatchesPerScope = 10;
+
     /// <inheritdoc />
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -43,6 +45,8 @@ internal sealed partial class ImportRetentionService(
             {
                 LogPurged(result.Batches, result.Lines, result.AuditEntries);
             }
+
+            await CancelAbandonedAsync(cancellationToken);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
@@ -54,6 +58,31 @@ internal sealed partial class ImportRetentionService(
             LogCycleFailed(ex);
         }
     }
+
+    /// <summary>
+    /// Cancela os lotes esquecidos em aguardando confirmação, poucos por vez e em escopo novo a cada rodada: cada lote carrega até
+    /// 5.000 linhas rastreadas, e um escopo só para todos seria memória sem limite.
+    /// </summary>
+    private async Task CancelAbandonedAsync(CancellationToken cancellationToken)
+    {
+        var total = 0;
+        int cancelled;
+        do
+        {
+            await using var scope = scopeFactory.CreateAsyncScope();
+            cancelled = await scope.ServiceProvider.GetRequiredService<ICancelAbandonedImportsHandler>().HandleAsync(AbandonedBatchesPerScope, cancellationToken);
+            total += cancelled;
+        }
+        while (cancelled > 0);
+
+        if (total > 0)
+        {
+            LogAbandonedCancelled(total);
+        }
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Import retention cancelled {Batches} abandoned batches awaiting confirmation")]
+    private partial void LogAbandonedCancelled(int batches);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Import retention removed {Batches} batches, {Lines} lines and {AuditEntries} audit entries")]
     private partial void LogPurged(int batches, int lines, int auditEntries);

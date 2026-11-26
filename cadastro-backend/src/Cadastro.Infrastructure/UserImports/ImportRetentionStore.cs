@@ -1,4 +1,5 @@
 using Cadastro.Application.UserImports;
+using Cadastro.Domain.UserImports;
 using Cadastro.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -46,4 +47,13 @@ internal sealed class ImportRetentionStore(CadastroDbContext db) : IImportRetent
         var batches = await db.ImportBatches.Where(b => ids.Contains(b.Id)).ExecuteDeleteAsync(cancellationToken);
         return new ExpiredBatchPurge(batches, lines);
     }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<Guid>> FindAbandonedBatchIdsAsync(DateTimeOffset createdBefore, int limit, CancellationToken cancellationToken) =>
+        await db.ImportBatches
+            .Where(b => b.Status == ImportBatchStatus.AwaitingConfirmation && b.CreatedAtUtc <= createdBefore)
+            .OrderBy(b => b.CreatedAtUtc)
+            .Select(b => b.Id)
+            .Take(limit)
+            .ToListAsync(cancellationToken);
 }
