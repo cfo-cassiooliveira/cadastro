@@ -26,6 +26,9 @@ public interface IImportRetentionStore
     /// em erro, saem em cascata. Lote sem prazo (ainda em processamento) nunca é removido.
     /// </summary>
     Task<ExpiredBatchPurge> DeleteExpiredBatchesAsync(DateTimeOffset now, int batchSize, CancellationToken cancellationToken);
+
+    /// <summary>Ids dos lotes ainda em <c>aguardando confirmação</c> criados até <paramref name="createdBefore"/>, do mais antigo para o mais novo.</summary>
+    Task<IReadOnlyList<Guid>> FindAbandonedBatchIdsAsync(DateTimeOffset createdBefore, int limit, CancellationToken cancellationToken);
 }
 
 /// <summary>Caso de uso do job de limpeza por retenção da importação.</summary>

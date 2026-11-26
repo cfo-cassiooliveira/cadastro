@@ -141,9 +141,11 @@ Um serviço em segundo plano da API (`ImportRetentionService`) roda a cada 6 h e
 - **Lotes com o relatório vencido** (90 dias após o fim do lote). As linhas saem em cascata, inclusive os **dados cifrados das linhas que terminaram em erro** e ficaram guardadas para o reprocessamento.
 - **Registros de auditoria** com mais de 12 meses.
 
+- **Lotes esquecidos em *aguardando confirmação*** há mais de **7 dias** são cancelados automaticamente (mesmo cancelamento do administrador): os dados cifrados das linhas pendentes são apagados e a auditoria registra `batch.abandoned-cancelled` em nome de `system:retention`. O arquivo pode ser enviado de novo depois. O relatório do lote cancelado segue a regra dos 90 dias.
+
 Lote ainda em processamento (sem prazo) nunca é apagado. Reprocessar um erro reabre o lote e zera o prazo, que recomeça quando ele termina de novo. O job é idempotente e registra só contagens no log (nunca dado pessoal).
 
-Configuração (`ImportRetention:*`): `Enabled` (padrão `true`), `IntervalMinutes` (360), `InitialDelaySeconds` (60) e `BatchSize` (500). Lotes abandonados em *aguardando confirmação* não vencem por este job (ver Riscos).
+Configuração (`ImportRetention:*`): `Enabled` (padrão `true`), `IntervalMinutes` (360), `InitialDelaySeconds` (60) e `BatchSize` (500).
 
 ## Resultado do E2E real
 
@@ -173,6 +175,5 @@ coberta pelo teste de integração `Consumer_WhenKeycloakRejectsTheUser_DeadLett
 - **E-mail na query da Admin API** (`GET users?email=`): conferir/mascarar o access log do Keycloak e de qualquer proxy antes de produção.
 - **E-mail repetido** possível na retomada de uma linha (mensagem nova para a mesma linha) enquanto a pessoa não ativou.
 - **Não verificado na stack real**: os 5 ciclos de retry esgotados, `AlreadyExists`, ambiguidade e indisponibilidade do Legado (cobertos por testes de integração), Graylog.
-- **Lote abandonado em *aguardando confirmação*** mantém as linhas cifradas até alguém confirmar ou cancelar: não há prazo para ele no job de retenção (decisão pendente).
 - Pendências de produção: painel/alerta de DLQ (O1), TLS validado no SQL Server.
 - **Fora deste repositório**: o card do projeto no site principal ainda precisa ser atualizado.

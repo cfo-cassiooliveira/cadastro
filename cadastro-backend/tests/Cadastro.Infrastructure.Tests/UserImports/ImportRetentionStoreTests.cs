@@ -155,4 +155,22 @@ public sealed class ImportRetentionStoreTests(ImportDatabaseFixture fixture)
         (await check.ImportBatches.AnyAsync(b => b.Id == batch.Id, ct)).ShouldBeFalse();
         (await check.AuditEntries.AnyAsync(a => a.Id == expiredAudit.Id, ct)).ShouldBeFalse();
     }
+
+    [Fact]
+    public async Task FindAbandonedBatchIds_ReturnsOnlyOldBatchesStillAwaitingConfirmation()
+    {
+        await using var db = await OpenAsync();
+        var old = ImportBatch.Create(Guid.CreateVersion7(), Hash(), "admin-1", 1, 0, 0, Start.AddDays(-9));
+        var recent = ImportBatch.Create(Guid.CreateVersion7(), Hash(), "admin-1", 1, 0, 0, Start.AddDays(-2));
+        var confirmedOld = ImportBatch.Create(Guid.CreateVersion7(), Hash(), "admin-1", 1, 0, 0, Start.AddDays(-9));
+        confirmedOld.Confirm(Start.AddDays(-8));
+        db.ImportBatches.AddRange(old, recent, confirmedOld);
+        await db.SaveChangesAsync(TestContext.Current.CancellationToken);
+
+        var ids = await new ImportRetentionStore(db).FindAbandonedBatchIdsAsync(Start.AddDays(-7), 100, TestContext.Current.CancellationToken);
+
+        ids.ShouldContain(old.Id);
+        ids.ShouldNotContain(recent.Id);
+        ids.ShouldNotContain(confirmedOld.Id);
+    }
 }
