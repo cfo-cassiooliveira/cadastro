@@ -23,6 +23,10 @@ dotnet build Cadastro.slnx -warnaserror
 dotnet test --solution Cadastro.slnx
 ```
 
+Os módulos com Testcontainers se serializam sozinhos (trava de arquivo em `tests/Shared/ModuleExclusivity.cs`); o CI ainda passa `--max-parallel-test-modules 1`.
+
+Importação em lote de usuários (CSV, fila, Keycloak sem senha): [docs/user-imports.md](docs/user-imports.md).
+
 ## Como subir a stack completa
 
 Pré-requisito: Docker. O Cadastro precisa do Keycloak de pé; a migração precisa também do Legado com a API interna.
