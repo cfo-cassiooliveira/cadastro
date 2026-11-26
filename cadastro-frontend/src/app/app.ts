@@ -13,6 +13,7 @@ import { filter } from 'rxjs';
 import { AuthService } from './auth/auth-service';
 import {
   LOG_INVESTIGATOR_ROLE,
+  USER_IMPORTER_ROLE,
   SESSION_EXPIRED_PARAM,
   SESSION_EXPIRED_VALUE,
 } from './auth/auth.model';
@@ -43,6 +44,9 @@ export class App implements OnInit {
   /** O item do menu só aparece para quem tem a role (a API e a rota conferem de novo). */
   protected readonly canSearchLogs = computed(() =>
     this.auth.user().roles.includes(LOG_INVESTIGATOR_ROLE),
+  );
+  protected readonly canImportUsers = computed(() =>
+    this.auth.user().roles.includes(USER_IMPORTER_ROLE),
   );
   protected readonly notice = signal<ReturnNotice | null>(
     readReturnNotice(inject(BrowserNavigation).currentPath()),

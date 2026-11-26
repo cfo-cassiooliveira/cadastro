@@ -1,0 +1,34 @@
+<div class="progress">
+  @if (total() > 0) {
+    <p class="progress__summary" [attr.role]="live() ? 'status' : null" i18n>
+      {{ processed() }} de {{ total() }} linhas processadas
+    </p>
+    <div class="progress__bar" aria-hidden="true">
+      @for (segment of segments(); track segment.key) {
+        @if (segment.count > 0) {
+          <span
+            class="progress__segment"
+            [class]="'progress__segment--' + segment.key"
+            [style.width.%]="segment.percent"
+          ></span>
+        }
+      }
+    </div>
+    <ul class="progress__legend">
+      @for (segment of segments(); track segment.key) {
+        <li class="progress__legend-item">
+          <span
+            class="progress__swatch"
+            [class]="'progress__segment--' + segment.key"
+            aria-hidden="true"
+          ></span>
+          <span
+            >{{ segment.label }}: <strong>{{ segment.count }}</strong></span
+          >
+        </li>
+      }
+    </ul>
+  } @else {
+    <p class="progress__summary" i18n>Nenhuma linha em processamento.</p>
+  }
+</div>

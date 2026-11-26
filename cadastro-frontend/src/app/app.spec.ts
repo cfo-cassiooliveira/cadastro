@@ -93,6 +93,21 @@ describe('App (shell)', () => {
     }
   });
 
+  it.each([
+    [['user'], false],
+    [['user', 'user-importer'], true],
+  ])('item Importações com as roles %j aparece: %s', async (roles, visible) => {
+    isAuthenticated.set(true);
+    user.set({ isAuthenticated: true, userName: 'ana.souza', roles, antiforgeryToken: 't' });
+    await render();
+
+    const link = element.querySelector('nav a[href="/imports"]');
+    expect(link !== null).toBe(visible);
+    if (visible) {
+      expect(link?.textContent).toContain('Importações');
+    }
+  });
+
   it('o botão "Menu" abre e fecha o menu (aria-expanded)', async () => {
     isAuthenticated.set(true);
     await render();

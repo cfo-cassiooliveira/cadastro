@@ -1,0 +1,20 @@
+.pager {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding-top: var(--space-4);
+}
+
+.pager__position {
+  margin: 0;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.btn:disabled {
+  color: var(--text-muted);
+  cursor: not-allowed;
+  opacity: 0.7;
+}

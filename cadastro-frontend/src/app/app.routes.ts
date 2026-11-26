@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
-import { authGuard, visitorGuard } from './auth/auth.guard';
-import { LOG_INVESTIGATOR_ROLE } from './auth/auth.model';
+import { authGuard, roleGuard, visitorGuard } from './auth/auth.guard';
+import { LOG_INVESTIGATOR_ROLE, USER_IMPORTER_ROLE } from './auth/auth.model';
 import { logSearchGuard } from './log-search/log-search.guard';
 
 /** Rotas da aplicação (spec 001); cadastro e listagem entram com as tarefas T21 e T22. */
@@ -23,6 +23,30 @@ export const routes: Routes = [
     title: $localize`Pesquisa em logs — Cadastro`,
     canActivate: [logSearchGuard(LOG_INVESTIGATOR_ROLE)],
     loadComponent: () => import('./log-search/log-search-page').then((m) => m.LogSearchPage),
+  },
+  {
+    path: 'imports',
+    canActivate: [roleGuard(USER_IMPORTER_ROLE)],
+    children: [
+      {
+        path: '',
+        title: $localize`Importações em lote — Cadastro`,
+        loadComponent: () =>
+          import('./user-imports/user-import-list-page').then((m) => m.UserImportListPage),
+      },
+      {
+        path: 'new',
+        title: $localize`Enviar lista — Cadastro`,
+        loadComponent: () =>
+          import('./user-imports/user-import-upload-page').then((m) => m.UserImportUploadPage),
+      },
+      {
+        path: ':id',
+        title: $localize`Lote de importação — Cadastro`,
+        loadComponent: () =>
+          import('./user-imports/user-import-detail-page').then((m) => m.UserImportDetailPage),
+      },
+    ],
   },
   {
     path: 'forbidden',

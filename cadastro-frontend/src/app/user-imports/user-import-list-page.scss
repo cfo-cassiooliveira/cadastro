@@ -1,0 +1,41 @@
+.batches__notice {
+  margin-bottom: var(--space-6);
+}
+
+.batches__list {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.batches__skeleton,
+.batch {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-6);
+}
+
+.batch__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.batch__title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 800;
+}
+
+.batch__facts {
+  margin: 0;
+  color: var(--text-muted);
+}
+
+.skeleton--short {
+  width: 45%;
+}

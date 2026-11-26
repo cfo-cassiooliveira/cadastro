@@ -1,0 +1,89 @@
+.detail__notice {
+  margin-bottom: var(--space-6);
+}
+
+/* Região viva sempre presente (o aviso entra e sai dentro dela); sem altura quando vazia. */
+.detail__live:empty {
+  display: none;
+}
+
+.detail__skeleton {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-6);
+}
+
+.skeleton--short {
+  width: 45%;
+}
+
+.detail__facts,
+.detail__explain,
+.detail__hint {
+  margin: 0;
+  max-width: 62ch;
+}
+
+.detail__hint,
+.detail__muted {
+  color: var(--text-muted);
+}
+
+.detail__muted {
+  display: block;
+  font-size: 0.875rem;
+}
+
+.detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.detail__lines {
+  margin-top: var(--space-6);
+}
+
+.detail__lines-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+  margin-bottom: var(--space-4);
+}
+
+.detail__lines-head .surface__title {
+  margin: 0;
+}
+
+.detail__filter {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.detail__filter-label {
+  font-weight: 700;
+}
+
+.detail__select {
+  min-height: 2.75rem;
+  padding: 0 var(--space-3);
+  font: inherit;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+}
+
+.btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+@media (width <= 30rem) {
+  .detail__actions .btn {
+    width: 100%;
+  }
+}
