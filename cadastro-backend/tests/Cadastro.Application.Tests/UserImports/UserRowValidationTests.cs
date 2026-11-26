@@ -105,6 +105,27 @@ public sealed class UserRowValidationTests
         UserRowValidator.Validate(Row(1, name: new string('a', 201)), out _).ShouldBe(["row.name_invalid"]);
     }
 
+    // O Keycloak recusa (400) firstName acima de 100 e lastName acima de 150 só na criação: o upload barra antes da confirmação.
+    [Fact]
+    public void Validate_FirstNameAtTheKeycloakLimit_IsValid() =>
+        UserRowValidator.Validate(Row(1, name: new string('A', 100) + " Silva"), out _).ShouldBeEmpty();
+
+    [Fact]
+    public void Validate_FirstNameOverTheKeycloakLimit_IsInvalid() =>
+        UserRowValidator.Validate(Row(1, name: new string('A', 101) + " Silva"), out _).ShouldBe(["row.name_invalid"]);
+
+    [Fact]
+    public void Validate_SingleWordNameOverTheFirstNameLimit_IsInvalid() =>
+        UserRowValidator.Validate(Row(1, name: new string('A', 150)), out _).ShouldBe(["row.name_invalid"]);
+
+    [Fact]
+    public void Validate_LastNameAtTheKeycloakLimit_IsValid() =>
+        UserRowValidator.Validate(Row(1, name: "Ana " + new string('B', 150)), out _).ShouldBeEmpty();
+
+    [Fact]
+    public void Validate_LastNameOverTheKeycloakLimit_IsInvalid() =>
+        UserRowValidator.Validate(Row(1, name: "Ana " + new string('B', 151)), out _).ShouldBe(["row.name_invalid"]);
+
     [Fact]
     public void Validate_StructuralIssue_IsReturnedAsIs() =>
         UserRowValidator.Validate(new ExtractedRow(7, null, null, null, null, "row.malformed"), out _).ShouldBe(["row.malformed"]);

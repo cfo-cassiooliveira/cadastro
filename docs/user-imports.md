@@ -97,7 +97,7 @@ Elisa Prado,elisa.prado@example.com,111.111.111-11,
 ```
 
 O nome não pode ter os caracteres que o Keycloak recusa (`< > & " $ % ! # ? § ; * ~ / \ | ^ = [ ] { } ( )`): a linha vira inválida no upload
-(`row.name_invalid`), antes de confirmar. Acentos, apóstrofo, hífen e ponto são aceitos.
+(`row.name_invalid`), antes de confirmar. O nome é dividido no primeiro espaço: o **primeiro nome aceita até 100 caracteres** e o **sobrenome (o resto) até 150**, os limites do perfil do Keycloak; acima disso a linha também é inválida no upload. Acentos, apóstrofo, hífen e ponto são aceitos.
 
 ## Códigos de erro e o que fazer
 
@@ -164,8 +164,8 @@ Stack real, sem mocks e sem Testcontainers; dados 100% fictícios. Execução de
 | LGPD | 0 ocorrências de e-mail, CPF ou nome em ~70 MB de logs, em 5.708 mensagens AMQP, na DLQ, no esquema `import` e no relatório CSV (com controle positivo) |
 | Marcação no Legado | 2 logins de e-mail igual marcados com o id do Keycloak; o de controle não foi marcado |
 
-Observação: esse E2E plantou `<Rejeitado>` no nome para provocar a falha definitiva. Hoje esse caractere é barrado já no upload; o cenário do E2E foi
-ajustado para um primeiro nome de 105 caracteres, que só o Keycloak recusa, mas **o E2E de 14 min não foi reexecutado depois dessa troca**. A falha definitiva também é
+Observação: esse E2E plantou `<Rejeitado>` no nome para provocar a falha definitiva. Hoje esse caractere e nomes acima de 100/150 caracteres são barrados já no upload; o cenário do E2E foi
+ajustado para um e-mail com ponto duplo (`imp..<id>@...`), que o upload aceita e só o Keycloak recusa (400 `error-invalid-email`). Reexecutado em 2026-11-26: com esse gatilho as linhas rejeitadas viraram erro definitivo e chegaram à DLQ (conferido), mas o E2E **não fechou 11/11**: com o realm de teste em ~31 mil usuários (cada rodada acrescenta ~5,4 mil) apareceram e-mails de ativação repetidos (1 no cenário de resiliência e 7 no lote grande), o risco aceito de reenvio quando uma tentativa estoura o tempo. Os testes H6, LGPD e métricas não rodaram depois dessa falha. A falha definitiva também é
 coberta pelo teste de integração `Consumer_WhenKeycloakRejectsTheUser_DeadLettersAtOnceAndTheBatchStillCompletes`.
 
 ## Riscos conhecidos

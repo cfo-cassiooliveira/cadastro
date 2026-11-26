@@ -43,8 +43,8 @@ function formatCpf(cpf, formatted) {
 
 /**
  * Monta o arquivo: `valid` linhas válidas e únicas, mais inválidas e duplicadas intercaladas, total de `valid+invalid+dup`
- * linhas de dados (o limite é 5.000). `rejectedByIdentity` são linhas válidas para o CSV mas com um primeiro nome de 105 caracteres, acima do limite de 100 do
- * User Profile do Keycloak (400 só na criação: falha definitiva, vai à DLQ). Caractere proibido no nome não serve mais: o upload já o recusa (`row.name_invalid`); elas contam entre as `valid`. Devolve o texto e a lista das pessoas válidas (para as verificações).
+ * linhas de dados (o limite é 5.000). `rejectedByIdentity` são linhas válidas para o CSV mas com e-mail de ponto duplo (`imp..<run>.<n>@`), que o Keycloak recusa com 400 `error-invalid-email`
+ * só na criação (falha definitiva, vai à DLQ). Caractere proibido ou nome acima de 100/150 caracteres não servem mais: o upload já os recusa (`row.name_invalid`); elas contam entre as `valid`. Devolve o texto e a lista das pessoas válidas (para as verificações).
  */
 function buildCsv({ runId, valid, invalid = 0, duplicates = 0, rejectedByIdentity = 0 }) {
     const people = Array.from({ length: valid }, (_, i) => {
@@ -54,8 +54,8 @@ function buildCsv({ runId, valid, invalid = 0, duplicates = 0, rejectedByIdentit
         return {
             index,
             rejected,
-            name: rejected ? `${"Longo".repeat(21)} ${syntheticName(index + 10)}` : syntheticName(index + 10),
-            email: `imp.${runId}.${String(index).padStart(5, "0")}@example.test`,
+            name: syntheticName(index + 10),
+            email: `imp.${rejected ? "." : ""}${runId}.${String(index).padStart(5, "0")}@example.test`,
             cpf,
             phone: index % 3 === 0 ? `119${String(80000000 + index).slice(-8)}` : "",
         };

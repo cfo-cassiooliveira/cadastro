@@ -105,13 +105,8 @@ internal sealed class KeycloakUserProvisioner(
     internal static string UserNameFor(Guid lineId) =>
         "imp." + Convert.ToHexStringLower(SHA256.HashData(Encoding.ASCII.GetBytes(lineId.ToString("D"))))[..24];
 
-    /// <summary>Divide o nome completo no primeiro espaço (nome, sobrenome).</summary>
-    internal static (string FirstName, string LastName) SplitName(string fullName)
-    {
-        var trimmed = fullName.Trim();
-        var space = trimmed.IndexOf(' ', StringComparison.Ordinal);
-        return space < 0 ? (trimmed, string.Empty) : (trimmed[..space], trimmed[(space + 1)..].Trim());
-    }
+    /// <summary>Divide o nome completo no primeiro espaço (nome, sobrenome); mesma regra e limites do upload.</summary>
+    internal static (string FirstName, string LastName) SplitName(string fullName) => PersonNameRules.Split(fullName);
 
     /// <summary>Celular no formato do perfil (<c>+55</c> e 11 dígitos); <c>null</c> se não der para normalizar (o campo é opcional).</summary>
     internal static string? NormalizeMobilePhone(string? phone)

@@ -44,7 +44,8 @@ internal static partial class UserRowValidator
         {
             issues.Add("row.name_required");
         }
-        else if (name.Length > MaxNameLength || ContainsControlCharacter(name) || name.AsSpan().IndexOfAny(ProhibitedNameCharacters) >= 0)
+        else if (name.Length > MaxNameLength || ContainsControlCharacter(name) || name.AsSpan().IndexOfAny(ProhibitedNameCharacters) >= 0
+            || PersonNameRules.ExceedsKeycloakLimits(name))
         {
             issues.Add("row.name_invalid");
         }

@@ -106,7 +106,7 @@
   para a DLQ; dados pessoais ficam para o reprocessamento. O consumidor **nunca** declara topologia nem publica em `cadastro.dlx`.
   Falhas de credencial do importador (400/401/403) são operacionais: retry sem consumir ciclo (ADR-0009); falha ao publicar na retry
   espera com backoff e, após 3 vezes, marca a linha `Error` antes de ir à DLQ; reenvio do e-mail só com `UPDATE_PASSWORD` pendente.
-  Nome com caractere do `person-name-prohibited-characters` do Keycloak (`<>&"$%!#?§;*~/\|^=[]{}()`) vira `row.name_invalid` já no upload.
+  Nome com caractere do `person-name-prohibited-characters` do Keycloak (`<>&"$%!#?§;*~/\|^=[]{}()`) vira `row.name_invalid` já no upload, assim como primeiro nome acima de 100 ou sobrenome acima de 150 caracteres (`PersonNameRules`, limites do User Profile).
   Categoria `Microsoft.EntityFrameworkCore` em Warning no `appsettings.json` (o polling do relay gerava dezenas de milhares de linhas Information).
   Segredos: `KC_CADASTRO_IMPORTER_CLIENT_SECRET` e `LEGADO_INTERNAL_CADASTRO_KEY` (`generate-env.sh` copia do `../keycloak` e do
   `../legado-cadastro-usuarios`). Testes: `Cadastro.Infrastructure.Tests/UserImports/` (RabbitMQ + Keycloak + Mailpit + SQL Server reais).
