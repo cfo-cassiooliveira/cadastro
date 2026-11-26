@@ -77,6 +77,27 @@ internal sealed class InMemoryUserImportStore : IUserImportWriter, IUserImportRe
     public int InboxCount => _inbox.Count;
 
     /// <inheritdoc />
+    public Task<ImportSaveResult> SaveLineOutcomeAsync(Guid batchId, ImportLineStatus outcome, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        lock (_gate)
+        {
+            var batch = _batches.FirstOrDefault(b => b.Id == batchId);
+            if (ForcedSaveResult is null && (batch is null || batch.Status != ImportBatchStatus.Processing || batch.FinishedLines >= batch.ValidLines))
+            {
+                ClearStaged();
+                return Task.FromResult(ImportSaveResult.BatchNotProcessing);
+            }
+
+            if (ForcedSaveResult is null && !_stagedInbox.Any(_inbox.Contains))
+            {
+                batch!.RecordLineOutcome(outcome, now);
+            }
+        }
+
+        return SaveChangesAsync(cancellationToken);
+    }
+
+    /// <inheritdoc />
     public Task<ImportSaveResult> SaveChangesAsync(CancellationToken cancellationToken)
     {
         lock (_gate)

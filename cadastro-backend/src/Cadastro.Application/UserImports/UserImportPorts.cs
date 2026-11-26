@@ -16,6 +16,9 @@ public enum ImportSaveResult
 
     /// <summary>A mensagem já foi processada (inbox): nada foi gravado.</summary>
     DuplicateMessage = 3,
+
+    /// <summary>O lote não está mais em processamento (cancelado, concluído ou com todas as linhas já contadas): nada foi gravado.</summary>
+    BatchNotProcessing = 4,
 }
 
 /// <summary>Mensagem de integração a gravar na outbox, na mesma transação da mudança de estado (Art. VII.3).</summary>
@@ -64,6 +67,14 @@ public interface IUserImportWriter
 
     /// <summary>Grava tudo numa transação; conflitos previstos viram resultado, não exceção.</summary>
     Task<ImportSaveResult> SaveChangesAsync(CancellationToken cancellationToken);
+
+    /// <summary>
+    /// Grava o término de uma linha: a linha (já encerrada em memória) e a inbox, e soma o resultado nos contadores do lote com um
+    /// <c>UPDATE</c> atômico, na mesma transação. Consumidores em paralelo não disputam mais a versão da linha do lote (antes,
+    /// perdiam a corrida, esgotavam as tentativas e a linha voltava à retry, reenviando o e-mail de ativação). Quando é a última linha,
+    /// o mesmo <c>UPDATE</c> encerra o lote, com a mesma regra de <see cref="ImportBatch.RecordLineOutcome"/>.
+    /// </summary>
+    Task<ImportSaveResult> SaveLineOutcomeAsync(Guid batchId, ImportLineStatus outcome, DateTimeOffset now, CancellationToken cancellationToken);
 }
 
 /// <summary>Contagem de linhas por estado, para o progresso do lote.</summary>
