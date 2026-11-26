@@ -23,6 +23,11 @@
     >
       <div class="alert__body">
         <p class="alert__text">{{ current.text }}</p>
+        @if (current.reselectFile) {
+          <p class="alert__detail" i18n>
+            Depois de confirmar, será preciso selecionar o arquivo de novo.
+          </p>
+        }
         @if (current.existingBatchId; as batchId) {
           <p class="alert__detail">
             <a [routerLink]="['/imports', batchId]" i18n>Ver o lote existente</a>

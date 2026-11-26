@@ -23,6 +23,8 @@ const ROUTE = '/imports/new';
 interface Problem extends FailureMessage {
   readonly issues: readonly RowIssue[];
   readonly existingBatchId: string | null;
+  /** O step-up recarrega a página: o arquivo escolhido no envio se perde. */
+  readonly reselectFile: boolean;
 }
 
 /** Valida extensão e tamanho no cliente (a API confere de novo); devolve a mensagem ou null. */
@@ -183,8 +185,10 @@ export class UserImportUploadPage {
       return;
     }
     logFailure(this.logger, event, failure);
+    const message = describeFailure(failure);
     this.problem.set({
-      ...describeFailure(failure),
+      ...message,
+      reselectFile: message.needsOtp && event === 'user_import.upload_failed',
       issues: failure.issues,
       existingBatchId: failure.code === 'import.duplicate_file' ? failure.batchId : null,
     });

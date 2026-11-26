@@ -117,7 +117,7 @@ test.describe("E1 importação em lote real", () => {
         await completeKeycloak(listHeading());
     }
 
-    /** GET na API com o cookie da sessão; em 403 (OTP vencido, regra dos 5 min) faz step-up e repete. */
+    /** GET na API com o cookie da sessão; em 403 (sessão sem OTP; leituras não vencem em 5 min) faz step-up e repete. */
     async function api(route) {
         let response = await page.request.get(route);
         if (response.status() === 403) {
@@ -151,6 +151,21 @@ test.describe("E1 importação em lote real", () => {
             page.getByRole("button", { name: /Confirmar e criar os acessos/ }).click(),
         ]);
         return response;
+    }
+
+    /** Reprocessa os erros pelo botão da tela; reprocessar é escrita e pede OTP recente, então faz step-up e repete no 403. */
+    async function reprocessErrorsViaUi(batchId) {
+        for (let attempt = 0; attempt < 2; attempt += 1) {
+            await page.goto(`/imports/${batchId}`);
+            const [response] = await Promise.all([
+                page.waitForResponse((r) => r.url().endsWith(`/api/v1/user-imports/${batchId}/reprocess-errors`) && r.request().method() === "POST", { timeout: 60_000 }),
+                page.getByRole("button", { name: /Reprocessar linhas com erro/ }).click(),
+            ]);
+            if (response.status() !== 403) return response;
+            results.otpStepUps = (results.otpStepUps ?? 0) + 1;
+            await stepUp();
+        }
+        throw new Error("Reprocessamento recusado com 403 mesmo após o step-up de OTP");
     }
 
     const batchOf = async (id) => (await api(`/api/v1/user-imports/${id}`)).json();
@@ -560,7 +575,7 @@ test.describe("E1 importação em lote real", () => {
         step.reportHasPersonalData = /@example\.test|Sintetico/.test(report) || [...sensitive.cpfs].some((c) => report.includes(c));
         expect(step.reportHasPersonalData).toBe(false);
 
-        await page.getByRole("button", { name: /Reprocessar linhas com erro/ }).click();
+        expect((await reprocessErrorsViaUi(smallBatchId)).ok()).toBe(true);
         await expect(page.getByText(/Linhas com erro reenviadas para a fila de processamento: \d+\./)).toBeVisible();
         const finished = await waitFinished(smallBatchId, { everyMs: 5 * SECOND, timeoutMs: 10 * 60_000 });
         const lines = await allLines(smallBatchId);

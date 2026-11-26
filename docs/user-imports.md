@@ -55,10 +55,25 @@ As telas acima são capturas reais da interface com dados fictícios (mocks), n�
 | **Consumidor idempotente (inbox)** | A entrega é "pelo menos uma vez". O `messageId` entra na inbox na mesma transação do efeito; repetição vira ack sem efeito. Falha transitória volta pela fila de retry (30 s, até 5 ciclos); definitiva vai à DLQ com a linha marcada com um código. |
 | **Sem senha** | O usuário nasce com `UPDATE_PASSWORD` e recebe um link de ativação (sempre `?lifespan=259200`). Nenhuma senha trafega, é logada ou chega por e-mail. |
 | **LGPD** | Nome, e-mail, CPF e telefone ficam cifrados no banco (AES-256-GCM) e são apagados quando a linha termina (criada ou já existente). A mensagem do broker leva só `batchId` e `lineId`. Logs só com ids e códigos. Linha com erro mantém os dados cifrados para o reprocessamento, até a retenção. |
-| **Só o criador altera o lote** | Confirmar, cancelar e reprocessar exigem o mesmo `sub` que enviou o arquivo; os demais `user-importer` só leem. Acesso exige a role `user-importer` e OTP recente. |
+| **Só o criador altera o lote** | Confirmar, cancelar e reprocessar exigem o mesmo `sub` que enviou o arquivo; os demais `user-importer` só leem. Regra de acesso em [Quem pode fazer o quê](#quem-pode-fazer-o-quê). |
 | **Confirmação em 2 passos** | O token do resumo é um HMAC do que o admin viu (hash do arquivo, contagens, lote e `sub`): não dá para confirmar um lote diferente do exibido. |
 | **Privilégio mínimo** | O broker (`cadastro-app`) só lê a fila e escreve em `cadastro.events` e `cadastro.retry`, nunca declara topologia. O client `cadastro-importer` do Keycloak só cria usuário e envia o e-mail. O banco usa dois logins (`cadastro_app` sem DDL, `cadastro_migrator` só nas migrations). |
 | **Marcação no Legado nunca desfaz o Keycloak** | Só com um candidato de e-mail exatamente igual; zero é "sem candidato", vários é aviso, API fora vira `Failed` na linha. |
+
+## Quem pode fazer o quê
+
+Tudo em `/api/v1/user-imports` exige a role `user-importer` (sem sessão: 401; sem a role: 403). O código do autenticador entra assim:
+
+| Chamada | Policy | Exigência além da role |
+|---|---|---|
+| Consultas: lista de lotes, detalhe, linhas e relatório CSV (GET) | `user-imports:read` | Sessão com segundo fator (`acr=otp`), de qualquer idade |
+| Ações: enviar, confirmar, cancelar e reprocessar (POST e qualquer escrita nova) | `user-imports:manage` | Código digitado há no máximo 5 minutos (`acr=otp` e `auth_time`) |
+
+As consultas só devolvem ids, estados, contagens, datas, números de linha e códigos de erro, **sem dado pessoal** (o relatório CSV também);
+por isso dá para acompanhar um lote longo sem digitar o código a cada 5 minutos. O login comum não conta como segundo fator para o BFF
+(o Keycloak emite `acr=password`): na primeira consulta da sessão a tela pede o código uma vez ("Confirmar com código"). Se um GET passar a
+entregar dado pessoal, ele precisa exigir `user-imports:manage`. Todo 403 das duas policies gera o Warning `user_import_access_denied`.
+Decisão registrada na [ADR-0010](adr/0010-otp-recente-so-nas-acoes-da-importacao.md).
 
 ## Como rodar do zero
 
@@ -172,7 +187,11 @@ coberta pelo teste de integração `Consumer_WhenKeycloakRejectsTheUser_DeadLett
 
 ## Riscos conhecidos
 
-- **OTP recente em todas as chamadas**: acompanhar um lote de ~8 min pede OTP novamente (a policy vale também para leitura). Decisão de produto pendente.
+- **Consultas com sessão OTP antiga**: quem tiver a sessão de um `user-importer` que já digitou o código lê os lotes (sem dado pessoal) até a
+  sessão acabar (30 min de inatividade; o Keycloak mantém `acr=otp` no refresh por até 10 h). A cada renovação do access token (10 min) o BFF
+  atualiza as roles: quem perde `user-importer` perde o acesso na renovação seguinte, e um token renovado sem `acr=otp` volta a pedir o código.
+  As ações continuam pedindo o código recente ([ADR-0010](adr/0010-otp-recente-so-nas-acoes-da-importacao.md)).
+- **Código pedido no envio**: confirmar o código recarrega a tela; o arquivo precisa ser escolhido de novo (a tela avisa).
 - **Banco compartilhado** com o Legado (exceção ao Art. III.4, ADR-0007), com plano de saída; a rede `workspace-data` é compartilhada.
 - **E-mail na query da Admin API** (`GET users?email=`): conferir/mascarar o access log do Keycloak e de qualquer proxy antes de produção.
 - **E-mail repetido** possível na retomada de uma linha (mensagem nova para a mesma linha) enquanto a pessoa não ativou.

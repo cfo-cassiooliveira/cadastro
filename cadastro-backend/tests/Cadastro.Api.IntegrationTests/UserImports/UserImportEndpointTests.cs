@@ -28,7 +28,7 @@ namespace Cadastro.Api.IntegrationTests.UserImports;
 /// 404, 409, recusas do arquivo, ClamAV indisponível (recusa), confirmação com token errado, reenvio e cancelamento.
 /// </summary>
 [Collection(ApiTestGroup.Name)]
-public sealed class UserImportEndpointTests(CadastroApiFactory factory) : IDisposable
+public sealed partial class UserImportEndpointTests(CadastroApiFactory factory) : IDisposable
 {
     private readonly string _tempDirectory = Path.Combine(Path.GetTempPath(), "cadastro-import-test-" + Guid.NewGuid().ToString("N"));
     private const string Header = "nome,email,cpf,telefone\n";
@@ -67,28 +67,6 @@ public sealed class UserImportEndpointTests(CadastroApiFactory factory) : IDispo
         using var response = await client.PostAsync(Route, content, TestContext.Current.CancellationToken);
 
         response.StatusCode.ShouldBe(HttpStatusCode.Unauthorized);
-    }
-
-    [Theory]
-    [InlineData("user", "otp", 10)]
-    [InlineData("user-importer", "password", 10)]
-    [InlineData("user-importer", null, 10)]
-    [InlineData("user-importer", "otp", 360)]
-    public async Task Endpoints_WithoutRoleOrFreshOtp_Return403AndWarnTheDenial(string role, string? acr, int ageSeconds)
-    {
-        await using var host = Host(out var store, out _);
-
-        using var upload = await UploadAsync(host, ValidCsv, new TestIdentity(role, acr, ageSeconds));
-        using var list = await SendAsync(host, HttpMethod.Get, Route, identity: new TestIdentity(role, acr, ageSeconds));
-
-        upload.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-        list.StatusCode.ShouldBe(HttpStatusCode.Forbidden);
-        store.Batches.ShouldBeEmpty();
-        var denied = AuditEvents(host).ToList();
-        denied.Count.ShouldBe(2);
-        denied.ShouldAllBe(e => e.Level == LogEventLevel.Warning);
-        CollectingLogSink.Scalar(denied[0].Properties["audit_event"]).ShouldBe("user_import_access_denied");
-        denied[0].RenderMessage(System.Globalization.CultureInfo.InvariantCulture).ShouldNotContain("example.com");
     }
 
     [Fact]
@@ -540,7 +518,7 @@ public sealed class UserImportEndpointTests(CadastroApiFactory factory) : IDispo
             (await UploadAsync(host, ValidCsv)).StatusCode.ShouldBe(HttpStatusCode.InternalServerError);
         }
 
-        Directory.GetFiles(_tempDirectory).ShouldBeEmpty();
+        ShouldHaveNoSpoolFiles();
     }
 
     [Fact]
@@ -553,7 +531,7 @@ public sealed class UserImportEndpointTests(CadastroApiFactory factory) : IDispo
         response.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
         (await ProblemAsync(response)).GetProperty("code").GetString().ShouldBe("file.too_large");
         store.Batches.ShouldBeEmpty();
-        Directory.GetFiles(_tempDirectory).ShouldBeEmpty();
+        ShouldHaveNoSpoolFiles();
     }
 
     [Fact]
@@ -565,7 +543,7 @@ public sealed class UserImportEndpointTests(CadastroApiFactory factory) : IDispo
 
         response.StatusCode.ShouldBe(HttpStatusCode.RequestEntityTooLarge);
         (await ProblemAsync(response)).GetProperty("code").GetString().ShouldBe("file.too_large");
-        Directory.GetFiles(_tempDirectory).ShouldBeEmpty();
+        ShouldHaveNoSpoolFiles();
     }
 
     [Fact]
@@ -598,9 +576,33 @@ public sealed class UserImportEndpointTests(CadastroApiFactory factory) : IDispo
     {
         if (Directory.Exists(_tempDirectory))
         {
-            Directory.Delete(_tempDirectory, recursive: true);
+            DeleteTempDirectory();
         }
     }
+
+    // No Windows com antivírus, o fechamento de um arquivo DeleteOnClose é seguido, fora do processo, por um arquivo vazio
+    // "NOME.TMP.tmp" que fica preso por alguns milissegundos (reproduzido só com FileStream, sem a aplicação). A exclusão
+    // tenta de novo por um tempo limitado; um spool realmente preso pela aplicação continua falhando.
+    private void DeleteTempDirectory()
+    {
+        var deadline = Environment.TickCount64 + 5_000;
+        while (true)
+        {
+            try
+            {
+                Directory.Delete(_tempDirectory, recursive: true);
+                return;
+            }
+            catch (IOException) when (Environment.TickCount64 < deadline)
+            {
+                Thread.Sleep(10);
+            }
+        }
+    }
+
+    // O diretório tem de ficar vazio; só o artefato externo ("NOME.TMP.tmp", maiúsculo) é ignorado, qualquer que seja o nome do spool.
+    private void ShouldHaveNoSpoolFiles() =>
+        Directory.GetFiles(_tempDirectory).Where(path => !path.EndsWith(".TMP.tmp", StringComparison.Ordinal)).ShouldBeEmpty();
 
     private WebApplicationFactory<Program> Host(
         out InMemoryUserImportStore store, out FakeVirusScanner scanner, Action<IWebHostBuilder>? extra = null, Action<IServiceCollection>? configure = null)

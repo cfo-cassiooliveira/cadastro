@@ -42,6 +42,24 @@ public static class KeycloakAdmin
         return http;
     }
 
+    /// <summary>Atribui ou retira uma role do realm de um usuário, como o admin faria com a sessão dele aberta.</summary>
+    public static async Task SetRealmRoleAsync(string keycloakUrl, string userName, string role, bool assigned)
+    {
+        var cancellation = TestContext.Current.CancellationToken;
+        using var http = await AuthenticatedClientAsync(keycloakUrl);
+        var users = await http.GetFromJsonAsync<JsonElement>(
+            new Uri($"{keycloakUrl}/admin/realms/workspace/users?username={userName}&exact=true"), cancellation);
+        var representation = await http.GetFromJsonAsync<JsonElement>(new Uri($"{keycloakUrl}/admin/realms/workspace/roles/{role}"), cancellation);
+        using var request = new HttpRequestMessage(
+            assigned ? HttpMethod.Post : HttpMethod.Delete,
+            new Uri($"{keycloakUrl}/admin/realms/workspace/users/{users[0].GetProperty("id").GetString()}/role-mappings/realm"))
+        {
+            Content = JsonContent.Create(new[] { representation }),
+        };
+        using var response = await http.SendAsync(request, cancellation);
+        response.EnsureSuccessStatusCode();
+    }
+
     /// <summary>Encerra todas as sessões do usuário no Keycloak (como o admin faria ao desativar a conta).</summary>
     public static async Task EndAllSessionsAsync(string keycloakUrl, string userName)
     {

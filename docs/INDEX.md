@@ -10,6 +10,7 @@
 - 0002 Dados no User Profile do Keycloak (aceito) — adr/0002-dados-do-usuario-no-keycloak.md
 - 0007 Esquema `import` no banco do Legado, exceção ao Art. III.4 (aceito) — adr/0007-esquema-import-no-banco-do-legado.md
 - 0009 Consumidor das linhas da importação no processo da API (aceito) — adr/0009-consumidor-no-processo-da-api.md
+- 0010 OTP recente só nas ações da importação; roles atualizadas na renovação da sessão (aceito) — adr/0010-otp-recente-so-nas-acoes-da-importacao.md
 
 **Comandos** (na raiz; detalhes no CLAUDE.md)
 - `dotnet build Cadastro.slnx --nologo -v q -warnaserror`
