@@ -99,6 +99,8 @@ Elisa Prado,elisa.prado@example.com,111.111.111-11,
 O nome não pode ter os caracteres que o Keycloak recusa (`< > & " $ % ! # ? § ; * ~ / \ | ^ = [ ] { } ( )`): a linha vira inválida no upload
 (`row.name_invalid`), antes de confirmar. O nome é dividido no primeiro espaço: o **primeiro nome aceita até 100 caracteres** e o **sobrenome (o resto) até 150**, os limites do perfil do Keycloak; acima disso a linha também é inválida no upload. Acentos, apóstrofo, hífen e ponto são aceitos.
 
+O e-mail segue a forma que o Keycloak aceita: parte local de até 64 caracteres em átomos separados por ponto, **sem ponto no início, no fim ou duplo** (`a..b@`, `.ab@` e `ab.@` são `row.email_invalid` já no upload, porque o Keycloak os recusa com 400 só na criação) e domínio com rótulos sem hífen nas pontas e TLD de letras.
+
 ## Códigos de erro e o que fazer
 
 **Arquivo (resposta do upload)**
@@ -165,7 +167,7 @@ Stack real, sem mocks e sem Testcontainers; dados 100% fictícios. Execução de
 | Marcação no Legado | 2 logins de e-mail igual marcados com o id do Keycloak; o de controle não foi marcado |
 
 Observação: esse E2E plantou `<Rejeitado>` no nome para provocar a falha definitiva. Hoje esse caractere e nomes acima de 100/150 caracteres são barrados já no upload; o cenário do E2E foi
-ajustado para um e-mail com ponto duplo (`imp..<id>@...`), que o upload aceita e só o Keycloak recusa (400 `error-invalid-email`). Em 2026-11-26 a reexecução com esse gatilho mostrou e-mails de ativação repetidos (de 1 a 7 por rodada, mesmo com o realm esvaziado): 10 linhas esgotavam as 10 tentativas de gravar o resultado na linha do lote (concorrência otimista, prefetch 10), voltavam à retry com a linha ainda pendente e reenviavam o e-mail. A gravação do término da linha passou a somar os contadores com um `UPDATE` atômico no lote (`SaveLineOutcomeAsync`, mesma transação da linha e da inbox, mesma regra de `ImportBatch.RecordLineOutcome`, com teste de equivalência): **E2E 11/11, e-mails de ativação exatos (4.950 para 4.950) e 0 conflitos no log** (antes, 889). A falha definitiva também é
+ajustado, em duas etapas, para um gatilho que o upload não barra: primeiro um e-mail com ponto duplo, depois barrado também no upload; hoje o teste **ocupa no Keycloak o nome de usuário** que o importador usaria para 3 linhas (`imp.<24 hex>`, outro e-mail, sem `importLineId`), e a criação volta 409 sem ser da mesma linha nem do mesmo e-mail: erro definitivo `identity.rejected`, mensagem na DLQ e linha reprocessável pela tela. Em 2026-11-26 a reexecução com esse gatilho mostrou e-mails de ativação repetidos (de 1 a 7 por rodada, mesmo com o realm esvaziado): 10 linhas esgotavam as 10 tentativas de gravar o resultado na linha do lote (concorrência otimista, prefetch 10), voltavam à retry com a linha ainda pendente e reenviavam o e-mail. A gravação do término da linha passou a somar os contadores com um `UPDATE` atômico no lote (`SaveLineOutcomeAsync`, mesma transação da linha e da inbox, mesma regra de `ImportBatch.RecordLineOutcome`, com teste de equivalência): **E2E 11/11, e-mails de ativação exatos (4.950 para 4.950) e 0 conflitos no log** (antes, 889). A falha definitiva também é
 coberta pelo teste de integração `Consumer_WhenKeycloakRejectsTheUser_DeadLettersAtOnceAndTheBatchStillCompletes`.
 
 ## Riscos conhecidos

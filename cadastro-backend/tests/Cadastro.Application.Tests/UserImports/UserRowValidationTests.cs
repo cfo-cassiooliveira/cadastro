@@ -35,6 +35,11 @@ public sealed class UserRowValidationTests
     [InlineData("Ana", "sem-arroba", "52998224725", "row.email_invalid")]
     [InlineData("Ana", "a@b", "52998224725", "row.email_invalid")]
     [InlineData("Ana", "a b@example.com", "52998224725", "row.email_invalid")]
+    // Formas que o Keycloak recusa (400 error-invalid-email) e que a regex antiga aceitava.
+    [InlineData("Ana", "a..b@example.com", "52998224725", "row.email_invalid")]
+    [InlineData("Ana", ".ab@example.com", "52998224725", "row.email_invalid")]
+    [InlineData("Ana", "ab.@example.com", "52998224725", "row.email_invalid")]
+    [InlineData("Ana", "a@example..com", "52998224725", "row.email_invalid")]
     [InlineData("Ana", "a@example.com", "", "row.cpf_required")]
     [InlineData("Ana", "a@example.com", "123", "row.cpf_invalid")]
     public void Validate_InvalidField_ReturnsOnlyTheCode(string name, string email, string cpf, string code)
@@ -125,6 +130,23 @@ public sealed class UserRowValidationTests
     [Fact]
     public void Validate_LastNameOverTheKeycloakLimit_IsInvalid() =>
         UserRowValidator.Validate(Row(1, name: "Ana " + new string('B', 151)), out _).ShouldBe(["row.name_invalid"]);
+
+    [Theory]
+    [InlineData("a.b@example.com")]
+    [InlineData("a.b.c@example.com")]
+    [InlineData("o'brien@example.com")]
+    [InlineData("a+tag@example.com")]
+    [InlineData("a_b-c@sub.example.com.br")]
+    [InlineData("A.B@Example.COM")]
+    public void Validate_EmailsKeycloakAccepts_AreValid(string email) =>
+        UserRowValidator.Validate(Row(1, email: email), out _).ShouldBeEmpty();
+
+    [Fact]
+    public void Validate_EmailLocalPartAtAndOverTheLimit_IsValidAndInvalid()
+    {
+        UserRowValidator.Validate(Row(1, email: new string('a', 64) + "@example.com"), out _).ShouldBeEmpty();
+        UserRowValidator.Validate(Row(1, email: new string('a', 65) + "@example.com"), out _).ShouldBe(["row.email_invalid"]);
+    }
 
     [Fact]
     public void Validate_StructuralIssue_IsReturnedAsIs() =>
