@@ -750,6 +750,8 @@ public sealed class UserImportEndpointTests(CadastroApiFactory factory) : IDispo
         public Task<bool> HasProcessedMessageAsync(Guid messageId, CancellationToken cancellationToken) => throw new NotSupportedException();
 
         public Task<ImportSaveResult> SaveChangesAsync(CancellationToken cancellationToken) => throw new NotSupportedException();
+
+        public Task<ImportSaveResult> SaveLineOutcomeAsync(Guid batchId, ImportLineStatus outcome, DateTimeOffset now, CancellationToken cancellationToken) => throw new NotSupportedException();
     }
 
     /// <summary>Troca o corpo das requisições de importação por um fluxo que estoura o limite do servidor ao ser lido (como o Kestrel faz).</summary>

@@ -130,14 +130,16 @@ internal sealed partial class UserImportLineCompletion(IUserImportWriter writer,
 
             var now = timeProvider.GetUtcNow();
             finishLine(line, now);
-            batch.RecordLineOutcome(outcome, now);
             writer.AddInboxMessage(messageId, now);
-            switch (await writer.SaveChangesAsync(cancellationToken))
+            switch (await writer.SaveLineOutcomeAsync(batchId, outcome, now, cancellationToken))
             {
                 case ImportSaveResult.Saved:
                     return success;
                 case ImportSaveResult.DuplicateMessage:
                     return new LineProcessingResult(LineProcessingDisposition.Duplicate);
+                case ImportSaveResult.BatchNotProcessing:
+                    LogBatchNotProcessing(batchId, batch.Status);
+                    return new LineProcessingResult(LineProcessingDisposition.Failed, ImportFailureCodes.BatchInvalidState);
                 default:
                     LogConflict(batchId, lineId, attempt);
                     break;
