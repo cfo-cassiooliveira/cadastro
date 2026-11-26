@@ -19,5 +19,5 @@ export const SESSION_EXPIRED_VALUE = 'expired';
 /** Role que libera a pesquisa em logs (o BFF ainda exige OTP recente: ver `AuthService.requestOtpStepUp`). */
 export const LOG_INVESTIGATOR_ROLE = 'log-investigator';
 
-/** Role que libera a importação em lote (o BFF ainda exige OTP recente nas chamadas). */
+/** Role que libera a importação em lote (o BFF ainda exige OTP na sessão e OTP recente nas ações). */
 export const USER_IMPORTER_ROLE = 'user-importer';

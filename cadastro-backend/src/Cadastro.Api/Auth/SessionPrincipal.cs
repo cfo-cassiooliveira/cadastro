@@ -55,6 +55,25 @@ internal static class SessionPrincipal
         return new ClaimsPrincipal(identity);
     }
 
+    /// <summary>
+    /// Identidade da sessão depois de renovar os tokens: as roles passam a ser as do access token novo (já validado).
+    /// <c>acr</c> e <c>auth_time</c> continuam os do login: o refresh nunca adianta a hora do OTP nem concede <c>acr=otp</c>;
+    /// se o token novo já não traz <c>acr=otp</c>, a sessão também o perde.
+    /// </summary>
+    public static ClaimsPrincipal Refresh(ClaimsPrincipal session, string accessToken)
+    {
+        ArgumentNullException.ThrowIfNull(session);
+        var keepsOtp = new JsonWebToken(accessToken).TryGetPayloadValue<string>(AcrClaim, out var acr)
+            && acr == OtpStepUpRequirement.OtpAcr;
+        var identity = new ClaimsIdentity(session.Identity?.AuthenticationType, UserNameClaim, RoleClaim);
+        identity.AddClaims(session.Claims
+            .Where(claim => claim.Type != RoleClaim
+                && (keepsOtp || claim.Type != AcrClaim || claim.Value != OtpStepUpRequirement.OtpAcr))
+            .Select(claim => new Claim(claim.Type, claim.Value)));
+        identity.AddClaims(ReadRealmRoles(accessToken).Select(role => new Claim(RoleClaim, role)));
+        return new ClaimsPrincipal(identity);
+    }
+
     // acr e auth_time sempre da mesma fonte (a que traz o acr): misturar tokens combinaria um acr com a hora de outro login.
     private static IEnumerable<(string Type, string Value)> ReadStepUpClaims(string? accessToken, ClaimsPrincipal idToken)
     {

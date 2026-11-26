@@ -28,7 +28,8 @@ internal sealed class AccessDeniedAuditHandler(ILogger<AccessDeniedAuditHandler>
                 return Task.CompletedTask;
             }
 
-            if (UsesPolicy(context, BffAuthenticationSetup.UserImportsPolicy))
+            // Toda rota da importação exige a policy de leitura (as de escrita somam a outra): um 403 gera um só registro.
+            if (UsesPolicy(context, BffAuthenticationSetup.UserImportsReadPolicy))
             {
                 UserImportAudit.AccessDenied(logger, subject);
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;

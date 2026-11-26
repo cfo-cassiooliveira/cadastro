@@ -63,9 +63,15 @@
   `app/log-search/`, guard `logSearchGuard`, que registra o acesso negado via `GET /api/v1/log-search/access` antes de ir a `/forbidden`) oferece o botão "Confirmar com código" que abre
   `/bff/login?acr_values=otp&returnUrl=%2Flog-search` quando o 403 indica OTP ausente ou vencido; ao confirmar o OTP, o
   formulário volta vazio (o valor é descartado antes de sair da tela); o valor pesquisado nunca vai para URL, storage, `AppLogger` nem console (README).
-- **Importação em lote (spec 002 do `../rabbitmq`, C2-C4)**: `/api/v1/user-imports` (policy `user-imports:manage` = role
-  `user-importer` + `acr=otp` com `auth_time` <= 5 min; 403 vai ao log como Warning `user_import_access_denied` só com
-  `actor_id`, pelo `AccessDeniedAuditHandler`). Rotas: `POST /` (multipart, campo `file`; 201 com resumo, 409 `import.duplicate_file`
+- **Importação em lote (spec 002 do `../rabbitmq`, C2-C4)**: `/api/v1/user-imports`. **Duas policies**: o grupo inteiro exige
+  `user-imports:read` (role `user-importer` + sessão com `acr=otp`, sem limite de idade do `auth_time`) e todo POST (upload,
+  confirmar, cancelar, reprocessar e qualquer escrita nova) soma `user-imports:manage` (role + `acr=otp` com `auth_time`
+  <= 5 min). GET que passe a devolver dado pessoal tem de ir para `user-imports:manage`. Os 403 das duas vão ao log como
+  Warning `user_import_access_denied` só com `actor_id`, um por pedido, pelo `AccessDeniedAuditHandler`
+  (`UserImports/UserImportEndpointTests.Authorization.cs` cobre a matriz; ADR-0010). **Renovação da sessão**: o
+  `SessionTokenRefresher` valida o access token novo (assinatura, emissor, validade, `azp` e `sub`; falha encerra a sessão) e troca as
+  roles da sessão, para todas as áreas (chave desconhecida, como na rotação do realm, busca discovery/JWKS aguardando, no máximo
+  uma vez a cada 30 s; a recusa é logada com o motivo, sem o token); `auth_time` é o do login e `acr=otp` só se mantém se o token novo o trouxer. Rotas: `POST /` (multipart, campo `file`; 201 com resumo, 409 `import.duplicate_file`
   com o lote existente, 413/415/422/503 em Problem Details com `code`), `GET /`, `GET /{id}`, `GET /{id}/lines`, `GET /{id}/report`
   (CSV sem dado pessoal), `POST /{id}/confirm` (corpo `{ summaryToken }`: HMAC-SHA256 com chave do servidor `UserImports:SummaryTokenKey` sobre hash, contagens, `batchId` e `sub` do autor, devolvido só no 201 do upload; a API não sobe sem a chave),
   `POST /{id}/cancel`, `POST /{id}/lines/{lineId}/reprocess`, `POST /{id}/reprocess-errors`. **Dono do lote**: só o criador (`sub`) confirma, cancela ou reprocessa (403 `import.not_owner` + Warning); a leitura é aberta a todo `user-importer`. Todo POST exige antiforgery;

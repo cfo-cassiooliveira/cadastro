@@ -128,6 +128,32 @@ public sealed class BffLoginTests(KeycloakApiFactory factory)
         (await IsAuthenticatedAsync(browser)).ShouldBeTrue();
     }
 
+    // Regressão: o refresh trocava só os tokens e quem perdia uma role continuava com ela enquanto a sessão vivesse.
+    [Fact]
+    public async Task ExpiredAccessToken_AfterARoleIsRemoved_RefreshDropsItFromTheSession()
+    {
+        const string userName = "perde.role";
+        await KeycloakAdmin.CreateUserAsync(factory.KeycloakUrl, userName, Password);
+        await KeycloakAdmin.SetRealmRoleAsync(factory.KeycloakUrl, userName, "admin", assigned: true);
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        await using var host = factory.WithClock(clock);
+        using var browser = new BrowserSession(host);
+        using var _ = await browser.SignInAsync(userName, Password);
+        (await SessionAsync(browser)).Roles.ShouldContain("admin");
+        await KeycloakAdmin.SetRealmRoleAsync(factory.KeycloakUrl, userName, "admin", assigned: false);
+
+        clock.Advance(TimeSpan.FromMinutes(11));
+
+        var session = await SessionAsync(browser);
+        session.IsAuthenticated.ShouldBeTrue();
+        session.UserName.ShouldBe(userName);
+        session.Roles.ShouldNotContain("admin");
+        session.Roles.ShouldContain("user");
+    }
+
+    private static async Task<BffUserResponse> SessionAsync(BrowserSession browser) =>
+        (await browser.Bff.GetFromJsonAsync<BffUserResponse>(new Uri("/bff/user", UriKind.Relative), TestContext.Current.CancellationToken))!;
+
     // Regressão: requisições paralelas renovavam com o mesmo refresh token; o realm recusa o reuso e a sessão caía.
     [Fact]
     public async Task ExpiredAccessToken_RequestedConcurrently_IsRefreshedOnceAndTheSessionContinues()

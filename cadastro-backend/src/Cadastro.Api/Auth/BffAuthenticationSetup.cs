@@ -37,8 +37,14 @@ internal static partial class BffAuthenticationSetup
     /// <summary>Policy: pesquisa em logs por token (role <c>log-investigator</c> + OTP digitado há no máximo 5 min).</summary>
     public const string LogsInvestigatePolicy = "logs:investigate";
 
-    /// <summary>Policy: importação em lote de usuários (role <c>user-importer</c> + OTP digitado há no máximo 5 min).</summary>
+    /// <summary>Policy: ações da importação em lote (role <c>user-importer</c> + OTP digitado há no máximo 5 min).</summary>
     public const string UserImportsPolicy = "user-imports:manage";
+
+    /// <summary>
+    /// Policy: leituras da importação em lote, que não devolvem dado pessoal (role <c>user-importer</c> + sessão com
+    /// <c>acr=otp</c>, sem limite de idade do <c>auth_time</c>, para acompanhar um lote sem digitar o código a cada 5 min).
+    /// </summary>
+    public const string UserImportsReadPolicy = "user-imports:read";
 
     /// <summary>Role do realm que habilita a importação em lote (atribuição nominal no Keycloak).</summary>
     public const string UserImporterRole = "user-importer";
@@ -100,7 +106,11 @@ internal static partial class BffAuthenticationSetup
             .AddPolicy(UserImportsPolicy, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireRole(UserImporterRole)
-                .AddRequirements(new OtpStepUpRequirement()));
+                .AddRequirements(new OtpStepUpRequirement()))
+            .AddPolicy(UserImportsReadPolicy, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireRole(UserImporterRole)
+                .RequireClaim(SessionPrincipal.AcrClaim, OtpStepUpRequirement.OtpAcr));
         services.AddSingleton<IAuthorizationHandler, OtpStepUpHandler>();
         services.AddSingleton<IAuthorizationMiddlewareResultHandler, AccessDeniedAuditHandler>();
         return services;

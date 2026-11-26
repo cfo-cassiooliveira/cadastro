@@ -12,7 +12,8 @@ const TOO_LARGE_TEXT = $localize`O arquivo passa de 5 MB. Divida a lista em arqu
 
 /**
  * Traduz a falha da API (por status e código, nunca por texto do servidor) para uma mensagem em PT-BR. A API só devolve
- * 403 sem código quando falta o OTP recente (a role o guard de rota já garante).
+ * 403 sem código quando falta o OTP (a role o guard de rota já garante): nas consultas, sessão sem o código do
+ * autenticador; nas ações, código digitado há mais de 5 minutos.
  */
 export function describeFailure(failure: ApiFailure): FailureMessage {
   if (failure.status === 403 && failure.code !== 'import.not_owner') {

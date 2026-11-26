@@ -17,7 +17,10 @@ public sealed record ConfirmUserImportRequest(string? SummaryToken);
 /// <param name="Messages">Mensagens gravadas na outbox (linhas confirmadas ou reabertas).</param>
 public sealed record UserImportQueuedResponse(int Messages);
 
-/// <summary>Endpoints da importação em lote (<c>/api/v1/user-imports</c>): role <c>user-importer</c> + OTP recente.</summary>
+/// <summary>
+/// Endpoints da importação em lote (<c>/api/v1/user-imports</c>): role <c>user-importer</c> em todos; leituras pedem sessão
+/// com OTP e as ações que mudam estado pedem OTP recente.
+/// </summary>
 internal static class UserImportEndpoints
 {
     private const string CsvContentType = "text/csv; charset=utf-8";
@@ -30,11 +33,14 @@ internal static class UserImportEndpoints
     public static IEndpointRouteBuilder MapUserImportEndpoints(this IEndpointRouteBuilder app)
     {
         var group = app.MapGroup("/api/v1/user-imports").WithTags("UserImports")
-            .RequireAuthorization(BffAuthenticationSetup.UserImportsPolicy)
+            .RequireAuthorization(BffAuthenticationSetup.UserImportsReadPolicy)
             .ProducesProblem(StatusCodes.Status401Unauthorized)
             .ProducesProblem(StatusCodes.Status403Forbidden);
 
-        group.MapPost("/", UploadAsync)
+        // Os GET só devolvem estados, contagens e códigos (sem dado pessoal). Toda escrita entra em "writes" (há teste).
+        var writes = group.MapGroup(string.Empty).RequireAuthorization(BffAuthenticationSetup.UserImportsPolicy);
+
+        writes.MapPost("/", UploadAsync)
             .WithSummary("Uploads a CSV (multipart field 'file'); creates a batch awaiting confirmation.")
             .RequireRateLimiting(RateLimitPolicies.UserImports)
             .AddEndpointFilter<AntiforgeryValidationFilter>()
@@ -51,16 +57,16 @@ internal static class UserImportEndpoints
         group.MapGet("/{id:guid}/lines", ListLinesAsync).WithSummary("Lines of a batch (paginated, no personal data).");
         group.MapGet("/{id:guid}/report", ReportAsync).WithSummary("Per-line report as CSV (no personal data).");
 
-        group.MapPost("/{id:guid}/confirm", ConfirmAsync)
+        writes.MapPost("/{id:guid}/confirm", ConfirmAsync)
             .WithSummary("Confirms the batch with the summary token and queues one message per person.")
             .AddEndpointFilter<AntiforgeryValidationFilter>();
-        group.MapPost("/{id:guid}/cancel", CancelAsync)
+        writes.MapPost("/{id:guid}/cancel", CancelAsync)
             .WithSummary("Cancels a batch awaiting confirmation.")
             .AddEndpointFilter<AntiforgeryValidationFilter>();
-        group.MapPost("/{id:guid}/lines/{lineId:guid}/reprocess", ReprocessLineAsync)
+        writes.MapPost("/{id:guid}/lines/{lineId:guid}/reprocess", ReprocessLineAsync)
             .WithSummary("Reprocesses one line with a definitive error.")
             .AddEndpointFilter<AntiforgeryValidationFilter>();
-        group.MapPost("/{id:guid}/reprocess-errors", ReprocessErrorsAsync)
+        writes.MapPost("/{id:guid}/reprocess-errors", ReprocessErrorsAsync)
             .WithSummary("Reprocesses every line with a definitive error.")
             .AddEndpointFilter<AntiforgeryValidationFilter>();
         return app;

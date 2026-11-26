@@ -188,6 +188,9 @@ describe('UserImportUploadPage', () => {
     expect(element.querySelector('[role="alert"]')?.textContent).toContain(
       'código do autenticador',
     );
+    expect(element.querySelector('[role="alert"]')?.textContent).toContain(
+      'selecionar o arquivo de novo',
+    );
     button('Confirmar com código').click();
     expect(auth.requestOtpStepUp).toHaveBeenCalledWith('/imports/new');
   });

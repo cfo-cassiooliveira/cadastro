@@ -117,7 +117,7 @@ test.describe("E1 importação em lote real", () => {
         await completeKeycloak(listHeading());
     }
 
-    /** GET na API com o cookie da sessão; em 403 (OTP vencido, regra dos 5 min) faz step-up e repete. */
+    /** GET na API com o cookie da sessão; em 403 (sessão sem OTP; leituras não vencem em 5 min) faz step-up e repete. */
     async function api(route) {
         let response = await page.request.get(route);
         if (response.status() === 403) {
