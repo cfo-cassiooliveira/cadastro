@@ -37,6 +37,7 @@ public static class DependencyInjection
         services.AddScoped<IGetUserImportHandler, GetUserImportHandler>();
         services.AddScoped<IListUserImportLinesHandler, ListUserImportLinesHandler>();
         services.AddScoped<IGetUserImportReportHandler, GetUserImportReportHandler>();
+        services.AddScoped<IPurgeExpiredImportDataHandler, PurgeExpiredImportDataHandler>();
         return services;
     }
 }

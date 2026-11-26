@@ -67,6 +67,13 @@ public static class DependencyInjection
         services.TryAddSingleton<IPersonalDataProtector, AesGcmPersonalDataProtector>();
         services.AddScoped<IUserImportWriter, UserImportWriter>();
         services.AddScoped<IUserImportReadService, UserImportReadService>();
+        services.AddScoped<IImportRetentionStore, ImportRetentionStore>();
+        services.AddOptions<ImportRetentionOptions>().Bind(configuration.GetSection(ImportRetentionOptions.SectionName)).ValidateDataAnnotations().ValidateOnStart();
+        if (configuration.GetValue("ImportRetention:Enabled", true))
+        {
+            services.AddHostedService<ImportRetentionService>();
+        }
+
         services.AddOptions<ImportSummaryOptions>().Bind(configuration.GetSection(ImportSummaryOptions.SectionName)).ValidateOnStart();
         services.TryAddEnumerable(ServiceDescriptor.Singleton<IValidateOptions<ImportSummaryOptions>, ImportSummaryOptionsValidator>());
         services.TryAddSingleton<IImportSummarySigner>(sp =>

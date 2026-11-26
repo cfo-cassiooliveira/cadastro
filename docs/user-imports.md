@@ -134,6 +134,17 @@ Falha de credencial do importador (segredo errado, role removida) **não** vira 
 5 MB e 5.000 linhas por arquivo · **10 criações por segundo** (protege a Admin API do Keycloak) · link de ativação válido por **72 h** ·
 relatório por linha retido por 90 dias e auditoria por 12 meses · prefetch 10 mensagens por vez.
 
+### Retenção (job de limpeza)
+
+Um serviço em segundo plano da API (`ImportRetentionService`) roda a cada 6 h e apaga, em lotes de 500:
+
+- **Lotes com o relatório vencido** (90 dias após o fim do lote). As linhas saem em cascata, inclusive os **dados cifrados das linhas que terminaram em erro** e ficaram guardadas para o reprocessamento.
+- **Registros de auditoria** com mais de 12 meses.
+
+Lote ainda em processamento (sem prazo) nunca é apagado. Reprocessar um erro reabre o lote e zera o prazo, que recomeça quando ele termina de novo. O job é idempotente e registra só contagens no log (nunca dado pessoal).
+
+Configuração (`ImportRetention:*`): `Enabled` (padrão `true`), `IntervalMinutes` (360), `InitialDelaySeconds` (60) e `BatchSize` (500). Lotes abandonados em *aguardando confirmação* não vencem por este job (ver Riscos).
+
 ## Resultado do E2E real
 
 Stack real, sem mocks e sem Testcontainers; dados 100% fictícios. Execução de referência: 11 testes, todos passaram, 13,6 min
@@ -162,5 +173,6 @@ coberta pelo teste de integração `Consumer_WhenKeycloakRejectsTheUser_DeadLett
 - **E-mail na query da Admin API** (`GET users?email=`): conferir/mascarar o access log do Keycloak e de qualquer proxy antes de produção.
 - **E-mail repetido** possível na retomada de uma linha (mensagem nova para a mesma linha) enquanto a pessoa não ativou.
 - **Não verificado na stack real**: os 5 ciclos de retry esgotados, `AlreadyExists`, ambiguidade e indisponibilidade do Legado (cobertos por testes de integração), Graylog.
-- Pendências de produção: job de limpeza por retenção (J1), painel/alerta de DLQ (O1), TLS validado no SQL Server.
+- **Lote abandonado em *aguardando confirmação*** mantém as linhas cifradas até alguém confirmar ou cancelar: não há prazo para ele no job de retenção (decisão pendente).
+- Pendências de produção: painel/alerta de DLQ (O1), TLS validado no SQL Server.
 - **Fora deste repositório**: o card do projeto no site principal ainda precisa ser atualizado.
