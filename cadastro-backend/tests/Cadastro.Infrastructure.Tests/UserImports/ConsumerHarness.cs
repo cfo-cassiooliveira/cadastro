@@ -7,6 +7,7 @@ using Cadastro.Infrastructure.Messaging;
 using Cadastro.Infrastructure.Persistence;
 using Cadastro.Infrastructure.Tests.Messaging;
 using Cadastro.Infrastructure.Tests.Persistence;
+using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -112,9 +113,12 @@ internal sealed class ConsumerHarness : IAsyncDisposable
         await database.MigrateAsync();
         await broker.PurgeAsync();
         var caFile = typeof(ConsumerHarness).Assembly.Location;
+        // Com pool, como em produção. O fixture desliga o pool, e abrir conexão e login a cada comando derrubava a vazão do consumidor
+        // a ~2 linhas/s: as 60 linhas do teste de paralelismo passavam dos 90 s de espera quando a máquina estava carregada.
+        var connectionString = new SqlConnectionStringBuilder(database.AppConnectionString) { Pooling = true }.ConnectionString;
         var configuration = new ConfigurationBuilder().AddInMemoryCollection(new Dictionary<string, string?>
         {
-            ["ConnectionStrings:ImportDb"] = database.AppConnectionString,
+            ["ConnectionStrings:ImportDb"] = connectionString,
             ["PersonalData:Protection:CurrentKeyVersion"] = "k1",
             ["PersonalData:Protection:Keys:k1"] = DataKey,
             ["UserImports:SummaryTokenKey"] = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32)),

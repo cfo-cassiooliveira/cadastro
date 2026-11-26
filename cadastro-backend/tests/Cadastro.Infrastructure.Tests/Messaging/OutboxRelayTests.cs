@@ -111,8 +111,10 @@ public sealed class OutboxRelayTests(ImportDatabaseFixture database, RabbitMqFix
     public async Task Relay_UnroutableMessage_StaysPendingWithBackoffAndErrorCode()
     {
         await ResetAsync();
-        await SeedAsync(1, type: "cadastro.nobody-listens.v1");
-        var (relay, publisher, db) = NewRelay();
+        // Relógio parado: o backoff da 1ª falha é de 0,5 a 1,5 s e, no relógio real, vencia antes da conferência sob carga.
+        var clock = new FakeTimeProvider(DateTimeOffset.UtcNow);
+        await SeedAsync(1, type: "cadastro.nobody-listens.v1", clock: clock);
+        var (relay, publisher, db) = NewRelay(clock);
         await using var _ = publisher;
         await using var __ = db;
 
@@ -125,7 +127,8 @@ public sealed class OutboxRelayTests(ImportDatabaseFixture database, RabbitMqFix
         message.PublishedAtUtc.ShouldBeNull();
         message.Attempts.ShouldBe(1);
         message.LastErrorCode.ShouldBe("broker.unroutable");
-        message.NextAttemptAtUtc.ShouldBeGreaterThan(DateTimeOffset.UtcNow);
+        var baseDelay = TimeSpan.FromMilliseconds(broker.Options().BackoffBaseMs);
+        message.NextAttemptAtUtc.ShouldBeInRange(clock.GetUtcNow() + (baseDelay * 0.5), clock.GetUtcNow() + (baseDelay * 1.5));
         (await broker.DrainAsync()).ShouldBeEmpty();
     }
 
