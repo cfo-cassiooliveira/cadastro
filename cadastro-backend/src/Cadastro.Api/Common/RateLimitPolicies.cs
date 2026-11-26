@@ -22,11 +22,15 @@ internal static partial class RateLimitPolicies
     /// <summary>Pesquisa em logs por token: limita por usuário (<c>sub</c>), não por IP, para conter o uso como oráculo.</summary>
     public const string LogSearch = "log-search";
 
+    /// <summary>Upload da importação em lote: limita por usuário (<c>sub</c>), pois cada envio aciona o antivírus.</summary>
+    public const string UserImports = "user-imports";
+
     private const string LoggerCategory = "Cadastro.Api.RateLimiting";
     private const int DefaultLoginPermitsPerMinute = 10;
     private const int DefaultSessionPermitsPerMinute = 60;
     private const int DefaultClientLogsPermitsPerMinute = 30;
     private const int DefaultLogSearchPermitsPerHour = 30;
+    private const int DefaultUserImportsPermitsPerHour = 30;
     private static readonly TimeSpan Window = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan LogSearchWindow = TimeSpan.FromHours(1);
 
@@ -38,6 +42,7 @@ internal static partial class RateLimitPolicies
         var clientLogPermits = configuration.GetValue("RateLimiting:ClientLogsPermitsPerMinute", DefaultClientLogsPermitsPerMinute);
 
         var logSearchPermits = configuration.GetValue("RateLimiting:LogSearchPermitsPerHour", DefaultLogSearchPermitsPerHour);
+        var userImportsPermits = configuration.GetValue("RateLimiting:UserImportsPermitsPerHour", DefaultUserImportsPermitsPerHour);
 
         services.AddRateLimiter(options =>
         {
@@ -46,6 +51,7 @@ internal static partial class RateLimitPolicies
             options.AddPolicy(Session, context => FixedWindowByIp(context, sessionPermits));
             options.AddPolicy(ClientLogs, context => FixedWindowByIp(context, clientLogPermits));
             options.AddPolicy(LogSearch, context => FixedWindowBySubject(context, logSearchPermits));
+            options.AddPolicy(UserImports, context => FixedWindowBySubject(context, userImportsPermits));
         });
 
         // O logger vem do DI (injeção explícita), não de service locator dentro do callback.

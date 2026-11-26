@@ -11,7 +11,7 @@ public interface IIdentityUserReadService
 }
 
 /// <summary>O provedor de identidade não respondeu ou respondeu com erro (falha transitória, vira 503).</summary>
-public sealed class IdentityProviderUnavailableException : Exception
+public class IdentityProviderUnavailableException : Exception
 {
     /// <summary>Cria a exceção sem detalhe.</summary>
     public IdentityProviderUnavailableException()

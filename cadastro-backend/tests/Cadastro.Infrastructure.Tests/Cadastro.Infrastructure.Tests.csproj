@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <!-- Database: as migrations aplicadas pelo teste de integração. -->
+    <ProjectReference Include="..\..\src\Cadastro.Infrastructure\Cadastro.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\src\Cadastro.Database\Cadastro.Database.csproj" />
+    <Compile Include="../Shared/ContainerStartLock.cs" Link="Shared/ContainerStartLock.cs" />
+    <Compile Include="../Shared/ModuleExclusivity.cs" Link="Shared/ModuleExclusivity.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Kestrel HTTPS em processo: Legado falso com TLS e HMAC de verdade. -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+  <ItemGroup>
+    <!-- Realm de teste do consumidor (client cadastro-importer e User Profile de produção). -->
+    <None Update="UserImports\workspace-realm.json" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Testcontainers.MsSql" />
+    <PackageReference Include="Testcontainers.RabbitMq" />
+    <PackageReference Include="Testcontainers.Keycloak" />
+    <PackageReference Include="NSubstitute" />
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
+  </ItemGroup>
+</Project>

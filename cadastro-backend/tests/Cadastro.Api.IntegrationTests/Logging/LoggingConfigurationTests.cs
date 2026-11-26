@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Cadastro.Api.Common;
 using Microsoft.Extensions.Configuration;
+using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using Serilog.Parsing;
@@ -73,6 +74,33 @@ public sealed class LoggingConfigurationTests
         logEvent.Properties.ShouldNotContainKey("trace_id");
         logEvent.Properties.ShouldNotContainKey("span_id");
         logEvent.Properties.ShouldContainKey("thread_id");
+    }
+
+    [Fact]
+    public void EntityFrameworkCommands_AreWarningByDefaultButApplicationLogsStayInformation()
+    {
+        // Lê o appsettings.json REAL da API: o polling do relay gerava dezenas de milhares de linhas Information por execução.
+        var configuration = new ConfigurationBuilder().AddJsonFile(Path.Combine(AppContext.BaseDirectory, "appsettings.json")).Build();
+        var captured = new List<(string Source, LogEventLevel Level)>();
+        using var logger = new Serilog.LoggerConfiguration()
+            .ReadFrom.Configuration(configuration)
+            .WriteTo.Sink(new DelegateSink(e => captured.Add((((ScalarValue)e.Properties["SourceContext"]).Value!.ToString()!, e.Level))))
+            .CreateLogger();
+
+        foreach (var source in new[] { "Microsoft.EntityFrameworkCore.Database.Command", "Microsoft.EntityFrameworkCore.Infrastructure", "Cadastro.Application.UserImports.X" })
+        {
+            logger.ForContext("SourceContext", source).Information("info");
+            logger.ForContext("SourceContext", source).Warning("warn");
+        }
+
+        captured.Where(c => c.Source.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.Ordinal)).ShouldAllBe(c => c.Level == LogEventLevel.Warning);
+        captured.Count(c => c.Source.StartsWith("Microsoft.EntityFrameworkCore", StringComparison.Ordinal)).ShouldBe(2);
+        captured.Count(c => c.Source == "Cadastro.Application.UserImports.X").ShouldBe(2);
+    }
+
+    private sealed class DelegateSink(Action<LogEvent> write) : ILogEventSink
+    {
+        public void Emit(LogEvent logEvent) => write(logEvent);
     }
 
     private static LogEvent NewEvent() =>

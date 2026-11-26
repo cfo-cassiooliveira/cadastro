@@ -15,6 +15,9 @@ internal static class HealthChecksSetup
     /// <summary>Tag das dependências obrigatórias: se falharem, a instância não deve receber tráfego.</summary>
     public const string ReadyTag = "ready";
 
+    /// <summary>Tag das dependências externas não obrigatórias: aparecem no relatório completo e nunca derrubam o ready.</summary>
+    public const string ExternalTag = "external";
+
     /// <summary>Tag das métricas do processo (memória, threads, uptime).</summary>
     public const string ProcessTag = "process";
 
@@ -25,6 +28,8 @@ internal static class HealthChecksSetup
         services.TryAddSingleton(TimeProvider.System);
         services.AddHealthChecks()
             .AddKeycloakHealthCheck(ReadyTag)
+            // Broker não é obrigatório (a outbox guarda as mensagens): só no /health, nunca no ready (observability.md, tag external).
+            .AddBrokerHealthCheck(ExternalTag)
             .AddCheck<ProcessHealthCheck>("process", HealthStatus.Degraded, [ProcessTag]);
         return services;
     }

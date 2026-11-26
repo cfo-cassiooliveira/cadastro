@@ -12,6 +12,7 @@ internal static class CadastroArchitecture
     // Assembly sem tipo não é carregado: o Smart App Control do Windows bloqueia DLL vazia.
     public static readonly Architecture Value = new ArchLoader()
         .LoadAssemblies(
+            typeof(Cadastro.Domain.UserImports.ImportBatch).Assembly,
             typeof(Cadastro.Application.Users.IGetMyProfileHandler).Assembly,
             typeof(Cadastro.Infrastructure.DependencyInjection).Assembly,
             typeof(Program).Assembly)

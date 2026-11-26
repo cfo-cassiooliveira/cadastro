@@ -1,6 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="..\..\src\Cadastro.Api\Cadastro.Api.csproj" />
+    <Compile Include="../Shared/ContainerStartLock.cs" Link="Shared/ContainerStartLock.cs" />
+    <Compile Include="../Shared/ModuleExclusivity.cs" Link="Shared/ModuleExclusivity.cs" />
+    <Compile Include="../Shared/InMemoryUserImportStore.cs" Link="Shared/InMemoryUserImportStore.cs" />
   </ItemGroup>
   <ItemGroup>
     <!-- Realm mínimo importado pelo Keycloak de teste (Testcontainers). -->

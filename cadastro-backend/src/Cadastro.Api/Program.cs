@@ -3,15 +3,24 @@ using Cadastro.Api.ClientLogs;
 using Cadastro.Api.Common;
 using Cadastro.Api.Health;
 using Cadastro.Api.LogSearch;
+using Cadastro.Api.UserImports;
 using Cadastro.Api.Users;
 using Cadastro.Application;
+using Cadastro.Application.UserImports;
 using Cadastro.Infrastructure;
+using Microsoft.AspNetCore.Http.Features;
 using Microsoft.AspNetCore.HttpOverrides;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Não revela o servidor/versão no header "Server" (OWASP A02).
-builder.WebHost.ConfigureKestrel(options => options.AddServerHeader = false);
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.AddServerHeader = false;
+    // Corpo máximo da API: o arquivo de importação (5 MB) mais a folga do multipart; o resto das rotas recebe JSON pequeno.
+    options.Limits.MaxRequestBodySize = ImportLimits.MaxFileBytes + 1024 * 1024;
+});
+builder.Services.Configure<FormOptions>(options => options.MultipartBodyLengthLimit = ImportLimits.MaxFileBytes + 1024 * 1024);
 
 builder.Services.AddCadastroLogging(builder.Configuration, builder.Environment);
 builder.Services.AddProblemDetails();
@@ -19,6 +28,7 @@ builder.Services.AddExceptionHandler<GlobalExceptionHandler>();
 builder.Services.AddOpenApi();
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+builder.Services.AddImportPersistence(builder.Configuration);
 builder.Services.AddCadastroHealthChecks(builder.Configuration);
 builder.Services.AddBffAuthentication(builder.Configuration);
 builder.Services.AddCadastroRateLimiting(builder.Configuration);
@@ -63,6 +73,7 @@ app.MapCadastroHealthChecks();
 app.MapBffEndpoints();
 app.MapUserEndpoints();
 app.MapLogSearchEndpoints();
+app.MapUserImportEndpoints();
 app.MapClientLogEndpoints();
 
 await app.RunAsync();

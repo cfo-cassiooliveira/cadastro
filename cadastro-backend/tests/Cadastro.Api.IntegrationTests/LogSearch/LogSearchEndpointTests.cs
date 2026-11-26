@@ -271,7 +271,7 @@ public sealed class LogSearchEndpointTests(CadastroApiFactory factory)
         host.Services.GetServices<ILogEventSink>().OfType<CollectingLogSink>().Single();
 
     private IReadOnlyList<LogEvent> AuditEvents(WebApplicationFactory<Program> host) =>
-        [.. Sink(host).Events.Where(e => e.Properties.ContainsKey("audit_event") && Scalar(e, "investigator_id") == _investigator)];
+        [.. Sink(host).Events.Where(e => e.Properties.ContainsKey("audit_event") && e.Properties.ContainsKey("investigator_id") && Scalar(e, "investigator_id") == _investigator)];
 
     private static string? Scalar(LogEvent logEvent, string name) => CollectingLogSink.Scalar(logEvent.Properties[name]);
 

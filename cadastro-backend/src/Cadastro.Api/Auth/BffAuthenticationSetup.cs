@@ -37,6 +37,12 @@ internal static partial class BffAuthenticationSetup
     /// <summary>Policy: pesquisa em logs por token (role <c>log-investigator</c> + OTP digitado há no máximo 5 min).</summary>
     public const string LogsInvestigatePolicy = "logs:investigate";
 
+    /// <summary>Policy: importação em lote de usuários (role <c>user-importer</c> + OTP digitado há no máximo 5 min).</summary>
+    public const string UserImportsPolicy = "user-imports:manage";
+
+    /// <summary>Role do realm que habilita a importação em lote (atribuição nominal no Keycloak).</summary>
+    public const string UserImporterRole = "user-importer";
+
     /// <summary>Role do realm que habilita a pesquisa em logs (atribuição nominal no Keycloak).</summary>
     public const string LogInvestigatorRole = "log-investigator";
 
@@ -90,9 +96,13 @@ internal static partial class BffAuthenticationSetup
             .AddPolicy(LogsInvestigatePolicy, policy => policy
                 .RequireAuthenticatedUser()
                 .RequireRole(LogInvestigatorRole)
+                .AddRequirements(new OtpStepUpRequirement()))
+            .AddPolicy(UserImportsPolicy, policy => policy
+                .RequireAuthenticatedUser()
+                .RequireRole(UserImporterRole)
                 .AddRequirements(new OtpStepUpRequirement()));
         services.AddSingleton<IAuthorizationHandler, OtpStepUpHandler>();
-        services.AddSingleton<IAuthorizationMiddlewareResultHandler, LogSearchAccessAuditHandler>();
+        services.AddSingleton<IAuthorizationMiddlewareResultHandler, AccessDeniedAuditHandler>();
         return services;
     }
 
