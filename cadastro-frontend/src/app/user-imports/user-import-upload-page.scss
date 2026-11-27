@@ -184,6 +184,18 @@
 }
 
 @media (width <= 30rem) {
+  // Três colunas não cabem os rótulos ("Duplicadas") no celular: um contador por linha.
+  .counts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .counts__item {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-3);
+  }
+
   .upload__actions .btn {
     width: 100%;
   }
