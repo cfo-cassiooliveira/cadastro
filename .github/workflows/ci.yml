@@ -148,6 +148,9 @@ jobs:
             echo "USER_IMPORT_SUMMARY_KEY=$(openssl rand -base64 32)"
           } > .env
       - run: docker compose build
+      # O nginx precisa aceitar o que a API aceita (5 MB); o padrão de 1 MB barrava a importação com 413.
+      - name: Limite de envio no nginx do front
+        run: ./scripts/check-upload-limit.sh cadastro-web
       - name: Trivy nas imagens (HIGH/CRITICAL com correção; exceções com prazo no .trivyignore.yaml)
         run: |
           for image in cadastro-api cadastro-web; do
