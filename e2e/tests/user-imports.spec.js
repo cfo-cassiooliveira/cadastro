@@ -133,6 +133,7 @@ test.describe("Importação em lote (role user-importer)", () => {
         await page.setInputFiles("#csv-file", CSV);
         await page.getByRole("button", { name: "Enviar e conferir" }).click();
         await expect(page.getByRole("heading", { name: "Resumo do arquivo" })).toBeVisible();
+        await expect(page.locator(".counts__item")).toHaveCount(3);
 
         // 320 px é o mínimo de reflow (WCAG) e 360 px o Android comum: nenhum rótulo ou número pode vazar da caixa.
         for (const width of [320, 360]) {
