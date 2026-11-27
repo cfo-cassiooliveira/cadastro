@@ -127,6 +127,34 @@ test.describe("Importação em lote (role user-importer)", () => {
         await checkScreen(page, "07-cancelado", testInfo);
     });
 
+    test("resumo em tela estreita: os rótulos dos contadores cabem nas caixas", async ({ page }) => {
+        await installImportMocks(page);
+        await page.goto("/imports/new");
+        await page.setInputFiles("#csv-file", CSV);
+        await page.getByRole("button", { name: "Enviar e conferir" }).click();
+        await expect(page.getByRole("heading", { name: "Resumo do arquivo" })).toBeVisible();
+        await expect(page.locator(".counts__item")).toHaveCount(3);
+
+        // 320 px é o mínimo de reflow (WCAG) e 360 px o Android comum: nenhum rótulo ou número pode vazar da caixa.
+        for (const width of [320, 360]) {
+            await page.setViewportSize({ width, height: 700 });
+            const overflowing = await page.locator(".counts__item").evaluateAll((items) =>
+                items.flatMap((item) => {
+                    const box = item.getBoundingClientRect();
+                    return [...item.children]
+                        .filter((child) => {
+                            const range = document.createRange();
+                            range.selectNodeContents(child);
+                            const text = range.getBoundingClientRect();
+                            return text.left < box.left - 0.5 || text.right > box.right + 0.5;
+                        })
+                        .map((child) => child.textContent.trim());
+                }),
+            );
+            expect(overflowing, `rótulos vazando em ${width}px`).toEqual([]);
+        }
+    });
+
     test("lista de lotes mostra estado e progresso", async ({ page }, testInfo) => {
         await installImportMocks(page);
         await page.goto("/imports");
