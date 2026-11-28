@@ -1,10 +1,32 @@
 # Cadastro
 
-Sistema de cadastro de usuários autenticado pelo **Keycloak**, sucessor do [`legado`](../legado). Os usuários do
+Sistema de cadastro de usuários autenticado pelo **Keycloak**, sucessor do [`legado`](https://github.com/cfo-cassiooliveira/legado-cadastro-usuarios). Os usuários do
 Legado são migrados para o Keycloak **sob demanda**, no primeiro login, levando a senha e os dados.
 
 Planejamento: [spec](docs/specs/001-migracao-keycloak/spec.md) · [plano](docs/specs/001-migracao-keycloak/plan.md)
 · [tarefas](docs/specs/001-migracao-keycloak/tasks.md) · [ADRs](docs/adr/).
+
+## Destaques técnicos
+
+- **[Transactional Outbox](cadastro-backend/src/Cadastro.Infrastructure/Messaging/OutboxRelay.cs)**: evita que uma falha
+  entre gravar no banco e publicar no RabbitMQ deixe um lote confirmado sem mensagens.
+- **[Consumidor idempotente, retry e DLQ](cadastro-backend/src/Cadastro.Application/UserImports/ProcessUserImportLineHandler.cs)**:
+  a entrega é "pelo menos uma vez", e uma mensagem repetida não pode contar a linha de novo nem criar outro usuário.
+- **[Contadores com `UPDATE` atômico](cadastro-backend/src/Cadastro.Infrastructure/UserImports/UserImportWriter.cs)**:
+  resolve a disputa de consumidores paralelos pelo mesmo registro de lote, que gerava conflitos com concorrência otimista.
+- **[Cifra de dados pessoais com AES-256-GCM](cadastro-backend/src/Cadastro.Infrastructure/Protection/AesGcmPersonalDataProtector.cs)**:
+  impede a leitura dos dados por quem obtiver a tabela sem a chave; a versão da chave em cada registro permite trocá-la.
+- **[BFF com sessão no servidor](cadastro-backend/src/Cadastro.Api/Auth/BffAuthenticationSetup.cs)**
+  ([ADR-0001](docs/adr/0001-bff-com-sessao-no-servidor.md)): mantém os tokens fora do navegador, onde um script injetado
+  poderia copiá-los.
+- **[OTP recente só nas ações](cadastro-backend/src/Cadastro.Api/Auth/OtpStepUpRequirement.cs)**
+  ([ADR-0010](docs/adr/0010-otp-recente-so-nas-acoes-da-importacao.md)): exige o código para o que altera dados, sem pedi-lo
+  a cada 5 minutos a quem só acompanha um lote.
+
+## Uso de IA
+
+Este projeto foi desenvolvido com auxílio de IA (**Claude Code**), na implementação e em code review. As decisões de
+arquitetura estão registradas nas ADRs, e as mudanças passam por testes automatizados e CI antes de entrar na `master`.
 
 ## Estrutura
 

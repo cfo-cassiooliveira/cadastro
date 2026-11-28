@@ -38,6 +38,8 @@ serviços. O MVP vence em 04/12/2026 e já existe um SQL Server operado, com bac
    **`Cancel()` do lote apaga os dados das linhas pendentes** e as marca como `Cancelled`. A spec 002 (Q9) foi emendada.
 6. Concorrência: `import_batches` tem `rowversion`; consumidores em paralelo que atualizam contadores/estado recebem
    `DbUpdateConcurrencyException` e repetem a leitura (nenhuma atualização perdida).
+   **Revisão (2026-11-27)**: os contadores passaram a ser atualizados por `UPDATE` atômico no término de cada linha, não mais
+   por `rowversion` com repetição.
 7. Segredos (senhas dos logins, chave de cifra) só por variável de ambiente, user-secrets ou `.env` gerado por
    `scripts/generate-env.sh`; nunca versionados.
 

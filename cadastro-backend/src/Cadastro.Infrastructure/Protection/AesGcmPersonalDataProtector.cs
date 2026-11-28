@@ -6,9 +6,12 @@ using Microsoft.Extensions.Options;
 namespace Cadastro.Infrastructure.Protection;
 
 /// <summary>
-/// Cifra os dados pessoais com AES-256-GCM. Formato do valor: <c>nonce(12) | tag(16) | texto cifrado</c>; o nonce é
-/// aleatório por valor e o contexto entra como dado autenticado (AAD). O índice de e-mail usa HMAC-SHA256 com uma
-/// subchave derivada por HKDF, para não reutilizar a chave de cifra.
+/// Cifra com AES-256-GCM os dados pessoais que a importação guarda até processar a linha (LGPD, ADR-0007).
+/// <para>
+/// Formato: <c>nonce(12) | tag(16) | texto cifrado</c>. Linha e campo entram como AAD: valor copiado para outro lugar não decifra.
+/// A versão da chave fica no registro; sem recifragem, a chave antiga precisa continuar configurada enquanto houver dado dela.
+/// O índice de e-mail é um HMAC-SHA256 com subchave derivada por HKDF, para não reutilizar a chave de cifra.
+/// </para>
 /// </summary>
 internal sealed class AesGcmPersonalDataProtector : IPersonalDataProtector
 {
@@ -39,7 +42,7 @@ internal sealed class AesGcmPersonalDataProtector : IPersonalDataProtector
         }
 
         CurrentKeyVersion = value.CurrentKeyVersion;
-        // Uma subchave de índice por versão: a busca de linhas antigas continua possível depois da rotação.
+        // Uma subchave de índice por versão: o índice de linhas antigas continua recalculável depois da troca de chave.
         _emailIndexKeys = _keys.ToDictionary(
             pair => pair.Key,
             pair => HKDF.DeriveKey(HashAlgorithmName.SHA256, pair.Value, PersonalDataProtectionOptions.KeySizeBytes, info: IndexKeyInfo));

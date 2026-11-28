@@ -56,8 +56,8 @@ public interface IFailUserImportLineHandler
 }
 
 /// <summary>
-/// Grava o término de uma linha (linha, contadores do lote e inbox) numa única transação, recarregando e repetindo quando
-/// outro consumidor altera o lote ao mesmo tempo (rowversion).
+/// Grava o término de uma linha (linha, contadores do lote e inbox) numa única transação, para a reentrega ser segura.
+/// Os contadores usam <c>UPDATE</c> atômico (<see cref="IUserImportWriter.SaveLineOutcomeAsync"/>); repetir em conflito é salvaguarda.
 /// </summary>
 internal sealed partial class UserImportLineCompletion(IUserImportWriter writer, TimeProvider timeProvider, ILogger<UserImportLineCompletion> logger)
 {
@@ -161,7 +161,16 @@ internal sealed partial class UserImportLineCompletion(IUserImportWriter writer,
 
 /// <summary>
 /// Processa uma linha aceita: decifra os dados, cria o usuário sem senha no Keycloak (e-mail de ativação), tenta marcar o
-/// Legado e grava o desfecho. A inbox garante o efeito uma única vez; falha transitória pede retry e definitiva vai à DLQ.
+/// Legado e grava o desfecho. Há uma mensagem por pessoa, então uma linha com problema não impede as demais.
+/// <para>
+/// A entrega é "pelo menos uma vez". A inbox impede contar a linha duas vezes; o Keycloak fica fora da transação, e o atributo
+/// <c>importLineId</c> evita criar outro usuário. O e-mail de ativação pode se repetir se a gravação falhar após o envio (ADR-0009).
+/// </para>
+/// <para>
+/// Falha transitória volta por uma fila de retry com espera (30 s, até 5 ciclos), sem insistir de imediato em um serviço
+/// fora do ar. Falha definitiva, ou ciclos esgotados, é recusada para a DLQ em vez de ser descartada em silêncio, e a linha,
+/// quando existe e o lote ainda está em processamento, fica marcada com o código do motivo.
+/// </para>
 /// </summary>
 internal sealed partial class ProcessUserImportLineHandler(
     IUserImportWriter writer,
@@ -175,6 +184,7 @@ internal sealed partial class ProcessUserImportLineHandler(
     public async Task<LineProcessingResult> HandleAsync(ProcessUserImportLineCommand command, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(command);
+        // Atalho para não repetir chamadas externas. A garantia contra corrida é a chave única da inbox no commit.
         if (await writer.HasProcessedMessageAsync(command.MessageId, cancellationToken))
         {
             LogDuplicate(command.MessageId);
@@ -206,7 +216,7 @@ internal sealed partial class ProcessUserImportLineHandler(
         }
         catch (IdentityAccessDeniedException ex)
         {
-            // Credencial/permissão do importador recusada: volta à retry sem gastar ciclo (ADR-0009).
+            // Credencial recusada é erro de configuração: não gasta ciclo, para não levar o lote inteiro a erro (ADR-0009).
             LogIdentityAccessDenied(ex, command.LineId);
             return new LineProcessingResult(LineProcessingDisposition.RetryLater, ImportFailureCodes.IdentityUnavailable, CountsAsCycle: false);
         }

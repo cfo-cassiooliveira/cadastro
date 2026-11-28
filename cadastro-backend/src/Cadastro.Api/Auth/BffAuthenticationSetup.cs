@@ -13,6 +13,10 @@ namespace Cadastro.Api.Auth;
 /// <summary>
 /// BFF (security.md, ADR-0001): login OIDC no Keycloak com client confidencial, Authorization Code + PKCE S256, tokens
 /// guardados no servidor e cookie <c>__Host-</c> para o navegador, que nunca vê token. Negar por padrão.
+/// <para>
+/// Custo do cookie: exige anti-CSRF (<c>SameSite=Strict</c> e antiforgery nas escritas); a sessão em memória se perde no restart
+/// da API e limita a uma instância (ADR-0001).
+/// </para>
 /// </summary>
 internal static partial class BffAuthenticationSetup
 {
@@ -31,18 +35,22 @@ internal static partial class BffAuthenticationSetup
     /// <summary>Policy: usuário autenticado acessando os próprios dados.</summary>
     public const string UsersSelfPolicy = "users:self";
 
-    /// <summary>Policy: listagem de usuários (role <c>admin</c>).</summary>
+    /// <summary>Policy: listagem de usuários (role <c>admin</c>); registrada, ainda sem endpoint que a use.</summary>
     public const string UsersReadPolicy = "users:read";
 
     /// <summary>Policy: pesquisa em logs por token (role <c>log-investigator</c> + OTP digitado há no máximo 5 min).</summary>
     public const string LogsInvestigatePolicy = "logs:investigate";
 
-    /// <summary>Policy: ações da importação em lote (role <c>user-importer</c> + OTP digitado há no máximo 5 min).</summary>
+    /// <summary>
+    /// Policy: ações da importação em lote (role <c>user-importer</c> + OTP digitado há no máximo 5 min), porque alteram dados
+    /// e podem levar à criação de contas (ADR-0010).
+    /// </summary>
     public const string UserImportsPolicy = "user-imports:manage";
 
     /// <summary>
     /// Policy: leituras da importação em lote, que não devolvem dado pessoal (role <c>user-importer</c> + sessão com
     /// <c>acr=otp</c>, sem limite de idade do <c>auth_time</c>, para acompanhar um lote sem digitar o código a cada 5 min).
+    /// Uma consulta que passe a devolver dado pessoal deve usar <see cref="UserImportsPolicy"/> (ADR-0010).
     /// </summary>
     public const string UserImportsReadPolicy = "user-imports:read";
 
@@ -95,6 +103,7 @@ internal static partial class BffAuthenticationSetup
             options.Cookie.SameSite = SameSiteMode.Strict;
         });
 
+        // A fallback policy nega por padrão: endpoint sem policy declarada continua exigindo usuário autenticado.
         services.AddAuthorizationBuilder()
             .SetFallbackPolicy(new Microsoft.AspNetCore.Authorization.AuthorizationPolicyBuilder().RequireAuthenticatedUser().Build())
             .AddPolicy(UsersSelfPolicy, policy => policy.RequireAuthenticatedUser())
