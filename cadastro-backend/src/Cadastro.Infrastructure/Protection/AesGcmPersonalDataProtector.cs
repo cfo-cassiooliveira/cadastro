@@ -6,7 +6,7 @@ using Microsoft.Extensions.Options;
 namespace Cadastro.Infrastructure.Protection;
 
 /// <summary>
-/// Cifra com AES-256-GCM os dados pessoais que a importação guarda até processar a linha (LGPD, ADR-0007).
+/// Cifra com AES-256-GCM os dados pessoais que a importação guarda até a linha terminar; com erro, até o reprocessamento ou a retenção (LGPD, ADR-0007).
 /// <para>
 /// Formato: <c>nonce(12) | tag(16) | texto cifrado</c>. Linha e campo entram como AAD: valor copiado para outro lugar não decifra.
 /// A versão da chave fica no registro; sem recifragem, a chave antiga precisa continuar configurada enquanto houver dado dela.
