@@ -6,8 +6,8 @@ using Microsoft.Extensions.Options;
 namespace Cadastro.Infrastructure.Messaging;
 
 /// <summary>
-/// Executa o relay da outbox em segundo plano. Cada ciclo usa um escopo próprio (o <c>DbContext</c> é scoped). Com o
-/// broker indisponível o serviço pausa com backoff e jitter em vez de martelar o banco; nada derruba o processo.
+/// Executa o relay da outbox em segundo plano: confirmar um lote não depende de o broker estar de pé. Cada ciclo usa um escopo
+/// próprio (o <c>DbContext</c> é scoped); com broker ou banco indisponível, pausa com backoff e jitter sem derrubar a API.
 /// </summary>
 internal sealed partial class OutboxRelayService(
     IServiceScopeFactory scopeFactory, IOptions<RabbitMqOptions> options, ILogger<OutboxRelayService> logger) : BackgroundService

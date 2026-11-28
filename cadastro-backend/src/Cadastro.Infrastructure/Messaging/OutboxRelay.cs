@@ -9,14 +9,18 @@ namespace Cadastro.Infrastructure.Messaging;
 /// <summary>Resultado de um ciclo do relay.</summary>
 /// <param name="Selected">Mensagens lidas.</param>
 /// <param name="Published">Confirmadas pelo broker e marcadas como publicadas.</param>
-/// <param name="BrokerUnavailable">Todas as falhas do ciclo foram de conexão/canal: o serviço deve pausar antes de tentar de novo.</param>
+/// <param name="BrokerUnavailable">Nada foi publicado e todas as falhas foram de conexão/canal: o serviço deve pausar antes de tentar de novo.</param>
 internal readonly record struct OutboxRelayCycle(int Selected, int Published, bool BrokerUnavailable);
 
 /// <summary>
-/// Um ciclo do relay da outbox: lê um lote pequeno de pendentes com <c>UPDLOCK, READPAST</c> dentro de uma transação (outra
-/// instância pula as linhas travadas e nunca publica a mesma mensagem ao mesmo tempo), publica com confirms e só então marca
-/// como publicada. Falha, nack ou return mantêm a mensagem pendente com backoff e jitter. Se o processo cair entre o confirm
-/// e o commit a mensagem é republicada: o consumidor é idempotente por <c>messageId</c> (Art. VII.2).
+/// Relay da outbox: a confirmação do lote grava lote e mensagens na mesma transação, e este ciclo as publica depois (sem dual write).
+/// <para>
+/// Lê pendentes com <c>UPDLOCK, READPAST</c> (outra instância pula as linhas travadas) e só marca como publicada o que o broker
+/// confirmou; o resto volta com backoff. Uma queda entre o confirm e o commit republica, e o consumidor descarta pelo <c>messageId</c>.
+/// </para>
+/// <para>
+/// Custos (ADR-0007, riscos L5 e L6): a transação fica aberta à espera dos confirms; não há teto de tentativas nem alerta.
+/// </para>
 /// </summary>
 internal sealed partial class OutboxRelay(
     CadastroDbContext db,

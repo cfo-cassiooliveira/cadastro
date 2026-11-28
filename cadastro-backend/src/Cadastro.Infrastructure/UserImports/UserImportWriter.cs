@@ -8,8 +8,8 @@ using Microsoft.Extensions.Logging;
 namespace Cadastro.Infrastructure.UserImports;
 
 /// <summary>
-/// Escrita da importação sobre o <see cref="CadastroDbContext"/>: os agregados são carregados com rastreamento e tudo que
-/// o caso de uso muda (lote, linhas, auditoria e outbox) vai numa única transação do <c>SaveChanges</c>.
+/// Escrita da importação sobre o <see cref="CadastroDbContext"/>: lote, linhas, auditoria e outbox são gravados juntos; o término
+/// de uma linha usa transação explícita (<see cref="SaveLineOutcomeAsync"/>).
 /// </summary>
 internal sealed partial class UserImportWriter(CadastroDbContext db, ILogger<UserImportWriter> logger) : IUserImportWriter
 {
@@ -20,6 +20,8 @@ internal sealed partial class UserImportWriter(CadastroDbContext db, ILogger<Use
     private const string InboxTable = "inbox_messages";
 
     // Soma o resultado da linha nos contadores e, se for a última, encerra o lote (mesma regra de ImportBatch.RecordLineOutcome).
+    // UPDATE atômico porque todas as linhas disputam o mesmo registro: com rowversion, consumidores paralelos conflitavam, esgotavam
+    // as tentativas e reenviavam o e-mail de ativação (docs/user-imports.md). Custo: a regra se repete no domínio.
     // O lado direito de cada SET usa os valores de antes do UPDATE; só atualiza lote em processamento com linhas ainda por contar.
     // Placeholders: {0}=criadas, {1}=já existentes, {2}=erros, {3}=momento, {4}=fim da retenção do relatório, {5}=id do lote.
     private const string LineOutcomeSql = $$"""
@@ -112,7 +114,9 @@ internal sealed partial class UserImportWriter(CadastroDbContext db, ILogger<Use
         }
     }
 
-    /// <inheritdoc />
+    /// <summary>
+    /// Grava linha, inbox e contadores na mesma transação; desfaz tudo se o lote não aceita mais desfechos.
+    /// </summary>
     public async Task<ImportSaveResult> SaveLineOutcomeAsync(Guid batchId, ImportLineStatus outcome, DateTimeOffset now, CancellationToken cancellationToken)
     {
         var finished = now.ToUniversalTime();
