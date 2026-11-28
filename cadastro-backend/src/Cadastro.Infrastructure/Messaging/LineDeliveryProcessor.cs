@@ -27,10 +27,13 @@ internal readonly record struct DeliveryDecision(DeliveryAction Action, int Next
 /// <summary>
 /// Processa uma entrega fora do AMQP: valida o envelope, continua o trace do <c>traceparent</c>, chama o caso de uso num escopo
 /// próprio e traduz o resultado em ack, retry ou rejeição. Falha inesperada é logada uma vez aqui e vira retry; esgotados os
-/// ciclos, a linha é encerrada como erro e a mensagem vai à DLQ.
+/// ciclos, a linha é encerrada como erro e só então a mensagem vai à DLQ.
 /// </summary>
 internal sealed partial class LineDeliveryProcessor(IServiceScopeFactory scopeFactory, ILogger<LineDeliveryProcessor> logger)
 {
+    /// <summary>Contador que marca "ciclos esgotados, falta só encerrar a linha" (a marcação falhou numa volta anterior).</summary>
+    private const int GiveUpPendingAttempt = ImportRetryPolicy.MaxCycles + 1;
+
     /// <summary>Processa a entrega e devolve o que o consumidor deve fazer.</summary>
     public async Task<DeliveryDecision> ProcessAsync(ReadOnlyMemory<byte> body, int attempt, string? traceParent, CancellationToken cancellationToken)
     {
@@ -46,6 +49,11 @@ internal sealed partial class LineDeliveryProcessor(IServiceScopeFactory scopeFa
             ["correlation_id"] = message.CorrelationId,
             ["message_id"] = message.MessageId,
         });
+        if (attempt >= GiveUpPendingAttempt)
+        {
+            return await GiveUpAsync(body, message, cancellationToken);
+        }
+
         await using var scope = scopeFactory.CreateAsyncScope();
         var command = new ProcessUserImportLineCommand(message.MessageId, message.BatchId, message.LineId, attempt);
         try
@@ -62,7 +70,7 @@ internal sealed partial class LineDeliveryProcessor(IServiceScopeFactory scopeFa
         catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
             LogUnexpected(ex, message.LineId, attempt);
-            return await RetryOrGiveUpAsync(scope.ServiceProvider, message, attempt, cancellationToken);
+            return await RetryOrGiveUpAsync(body, message, attempt, cancellationToken);
         }
     }
 
@@ -92,26 +100,23 @@ internal sealed partial class LineDeliveryProcessor(IServiceScopeFactory scopeFa
         }
     }
 
-    private async Task<DeliveryDecision> RetryOrGiveUpAsync(
-        IServiceProvider services, LineAcceptedMessage message, int attempt, CancellationToken cancellationToken)
+    private Task<DeliveryDecision> RetryOrGiveUpAsync(ReadOnlyMemory<byte> body, LineAcceptedMessage message, int attempt, CancellationToken cancellationToken) =>
+        ImportRetryPolicy.IsExhausted(attempt)
+            ? GiveUpAsync(body, message, cancellationToken)
+            : Task.FromResult(new DeliveryDecision(DeliveryAction.Retry, ImportRetryPolicy.NextAttempt(attempt), ImportFailureCodes.ProcessingFailed));
+
+    // A mensagem só vai à DLQ depois de a linha estar encerrada. Se a marcação não grava (banco fora, conflitos seguidos), a mensagem
+    // volta pela fila de retry (uma volta por TTL, sem laço quente) com o contador parado em GiveUpPendingAttempt: a próxima entrega só
+    // tenta encerrar a linha de novo, sem reprocessar, e o x-retry-count não cresce sem limite.
+    private async Task<DeliveryDecision> GiveUpAsync(ReadOnlyMemory<byte> body, LineAcceptedMessage message, CancellationToken cancellationToken)
     {
-        if (!ImportRetryPolicy.IsExhausted(attempt))
+        if (await TryFailLineAsync(body, ImportFailureCodes.RetriesExhausted, cancellationToken))
         {
-            return new DeliveryDecision(DeliveryAction.Retry, ImportRetryPolicy.NextAttempt(attempt), ImportFailureCodes.ProcessingFailed);
+            return new DeliveryDecision(DeliveryAction.Reject, Code: ImportFailureCodes.RetriesExhausted);
         }
 
-        try
-        {
-            await services.GetRequiredService<IFailUserImportLineHandler>().HandleAsync(
-                new FailUserImportLineCommand(message.MessageId, message.BatchId, message.LineId, ImportFailureCodes.RetriesExhausted), cancellationToken);
-        }
-        catch (Exception ex) when (ex is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
-        {
-            // Não deu para marcar a linha (banco fora): a mensagem vai à DLQ mesmo assim, para não girar para sempre.
-            LogGiveUpFailed(ex, message.LineId);
-        }
-
-        return new DeliveryDecision(DeliveryAction.Reject, Code: ImportFailureCodes.RetriesExhausted);
+        LogGiveUpPending(message.LineId);
+        return new DeliveryDecision(DeliveryAction.Retry, GiveUpPendingAttempt, ImportFailureCodes.RetriesExhausted);
     }
 
     private static Activity? StartActivity(string? traceParent)
@@ -133,4 +138,7 @@ internal sealed partial class LineDeliveryProcessor(IServiceScopeFactory scopeFa
 
     [LoggerMessage(Level = LogLevel.Error, Message = "Could not mark import line {LineId} as failed after the retries were exhausted")]
     private partial void LogGiveUpFailed(Exception exception, Guid lineId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Import line {LineId} is still pending after the retries were exhausted; the message goes back to the retry queue")]
+    private partial void LogGiveUpPending(Guid lineId);
 }

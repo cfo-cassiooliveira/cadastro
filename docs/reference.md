@@ -107,7 +107,8 @@
   Efeito, contadores do lote e inbox gravam na **mesma transação** (`UserImportLineCompletion`, retry em `DbUpdateConcurrencyException`
   recarregando; unique da inbox = duplicata, ack sem repetir). Falha transitória (Keycloak 5xx/timeout/429/401/403/circuito aberto) ->
   republica em `cadastro.retry` (mesmo `messageId`/corpo, header `x-retry-count` +1, `traceparent`) e ack; após 5 ciclos
-  (`ImportRetryPolicy`) a linha vai a `Error` (`processing.retries_exhausted`) e `BasicNack(requeue:false)` leva à DLQ. Falha
+  (`ImportRetryPolicy`) a linha vai a `Error` (`processing.retries_exhausted`) e `BasicNack(requeue:false)` leva à DLQ; se a marcação
+  não grava (banco fora), a mensagem volta à retry com `x-retry-count` fixo em 6 e só tenta marcar de novo (nunca DLQ com linha Pending). Falha
   definitiva (400/422/409 de outra pessoa, mensagem inválida, linha inexistente, dado ilegível) -> linha `Error` com código + nack
   para a DLQ; dados pessoais ficam para o reprocessamento. O consumidor **nunca** declara topologia nem publica em `cadastro.dlx`.
   Falhas de credencial do importador (400/401/403) são operacionais: retry sem consumir ciclo (ADR-0009); falha ao publicar na retry
