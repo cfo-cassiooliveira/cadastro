@@ -8,6 +8,8 @@ namespace Cadastro.Api.Auth;
 /// <summary>
 /// Guarda a sessão (identidade e tokens do Keycloak) na memória do servidor; o cookie leva só a chave (ADR-0001).
 /// A entrada expira por inatividade junto com a sessão.
+/// Mantém os tokens fora do navegador e permite encerrar a sessão no servidor. O custo da memória local: reiniciar a API
+/// derruba todas as sessões, e mais de uma instância exigiria um armazenamento compartilhado.
 /// </summary>
 internal sealed class InMemoryTicketStore(IMemoryCache cache) : ITicketStore
 {

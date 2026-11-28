@@ -2,7 +2,10 @@ using System.Text.RegularExpressions;
 
 namespace Cadastro.Domain.UserImports;
 
-/// <summary>Linha do lote: uma pessoa a criar, com os dados pessoais cifrados até o fim do processamento.</summary>
+/// <summary>
+/// Linha do lote: uma pessoa a criar. A mensagem na fila leva só ids, então os dados precisam esperar no banco: ficam cifrados
+/// e são apagados quando a linha é criada, já existia ou é cancelada. A linha com erro os mantém para o reprocessamento.
+/// </summary>
 public sealed partial class ImportLine
 {
     private ImportLine()
@@ -104,8 +107,8 @@ public sealed partial class ImportLine
     public void MarkAlreadyExists(DateTimeOffset now) => Finish(ImportLineStatus.AlreadyExists, null, now, erase: true);
 
     /// <summary>
-    /// Marca a falha definitiva. Os dados pessoais são mantidos para o reprocessamento manual (decisão Q8) e
-    /// só saem por <see cref="ErasePersonalData"/> (expiração do relatório ou cancelamento).
+    /// Marca a falha definitiva. Os dados pessoais são mantidos para o reprocessamento manual (decisão Q8) e, se a linha
+    /// não for reprocessada com sucesso, só saem quando a retenção remove o lote com o relatório vencido.
     /// </summary>
     public void MarkFailed(string reasonCode, DateTimeOffset now)
     {

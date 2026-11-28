@@ -11,6 +11,8 @@ namespace Cadastro.Infrastructure.Messaging;
 /// Publica as mensagens da outbox no RabbitMQ 7.x: uma <see cref="IConnection"/> longa (singleton, recuperação automática),
 /// um canal com publisher confirms e rastreamento, mensagens persistentes e <c>mandatory</c>. Nunca declara exchange, fila
 /// nem binding (o usuário <c>cadastro-app</c> não tem configure). Falhas viram desfecho por mensagem, nunca exceção.
+/// Sem confirms e <c>mandatory</c>, uma mensagem recusada ou sem fila de destino seria dada como publicada. O custo é esperar o
+/// broker a cada publicação e, se a confirmação se perder, publicar de novo (o consumidor descarta pela inbox).
 /// </summary>
 internal sealed partial class RabbitMqOutboxPublisher(IOptions<RabbitMqOptions> options, ILogger<RabbitMqOutboxPublisher> logger)
     : IOutboxPublisher, IAsyncDisposable

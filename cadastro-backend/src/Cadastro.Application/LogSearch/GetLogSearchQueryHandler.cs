@@ -40,6 +40,8 @@ public interface IGetLogSearchQueryHandler
 /// <summary>
 /// Calcula os tokens pela porta <see cref="ILogPseudonymizer"/> e monta a consulta sobre todos os campos do tipo
 /// (<see cref="LogSearchFields"/>). Os erros só trazem códigos: o valor informado nunca volta na resposta.
+/// Permite investigar logs pseudonimizados pelo token, sem digitar o dado pessoal no Graylog. Só encontra o que foi logado
+/// como campo estruturado e reconhecido no formato do tipo.
 /// </summary>
 internal sealed partial class GetLogSearchQueryHandler(ILogPseudonymizer pseudonymizer) : IGetLogSearchQueryHandler
 {

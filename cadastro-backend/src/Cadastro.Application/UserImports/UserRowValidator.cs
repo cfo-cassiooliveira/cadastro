@@ -11,7 +11,11 @@ namespace Cadastro.Application.UserImports;
 /// <param name="Phone">Telefone aparado; <c>null</c> quando não informado.</param>
 internal sealed record ValidatedUser(int LineNumber, string Name, string Email, string Cpf, string? Phone);
 
-/// <summary>Valida uma linha extraída (obrigatórios, e-mail, CPF e telefone) devolvendo só códigos de erro, nunca o valor.</summary>
+/// <summary>
+/// Valida uma linha extraída (obrigatórios, e-mail, CPF e telefone) devolvendo só códigos de erro, nunca o valor. Repete
+/// regras do Keycloak para a recusa aparecer antes da confirmação; o custo é manter as duas iguais quando o realm ou a versão
+/// do Keycloak mudar.
+/// </summary>
 internal static partial class UserRowValidator
 {
     private const int MaxNameLength = 200;

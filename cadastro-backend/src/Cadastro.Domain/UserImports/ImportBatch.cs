@@ -2,7 +2,11 @@ using System.Text.RegularExpressions;
 
 namespace Cadastro.Domain.UserImports;
 
-/// <summary>Lote de importação: um arquivo CSV validado, confirmado em dois passos e processado linha a linha.</summary>
+/// <summary>
+/// Lote de importação: um arquivo CSV validado, confirmado em dois passos e processado linha a linha. A confirmação separada
+/// permite ver quantas linhas passaram antes de criar qualquer conta. Os contadores ficam no lote para saber quando a última
+/// linha terminou; o custo é que todas as linhas do lote atualizam o mesmo registro.
+/// </summary>
 public sealed partial class ImportBatch
 {
     private ImportBatch()
@@ -53,7 +57,10 @@ public sealed partial class ImportBatch
     /// <summary>Quando o relatório por linha deixa de ser retido (90 dias após o fim).</summary>
     public DateTimeOffset? ReportExpiresAtUtc { get; private set; }
 
-    /// <summary>Token de concorrência otimista (rowversion): dois consumidores não sobrescrevem os contadores um do outro.</summary>
+    /// <summary>
+    /// Token de concorrência otimista (rowversion): um comando do administrador baseado numa leitura antiga falha em vez de
+    /// sobrescrever o lote. O término das linhas não depende dele: soma os contadores com um <c>UPDATE</c> atômico.
+    /// </summary>
     public byte[] RowVersion { get; private set; } = [];
 
     /// <summary>Linhas que já terminaram (criadas, já existentes ou com erro).</summary>

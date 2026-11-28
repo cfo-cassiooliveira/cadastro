@@ -13,6 +13,9 @@ namespace Cadastro.Infrastructure.Messaging;
 /// Consome <c>cadastro.user-import-lines</c> em segundo plano: uma conexão longa (<c>cadastro-consumer</c>), canal próprio do
 /// consumidor com prefetch e ack manual, e um segundo canal com confirms para a fila de retry. O ack só acontece depois de o
 /// caso de uso concluir e comitar. Nunca declara exchange, fila nem binding (o <c>cadastro-app</c> não tem configure).
+/// Ack depois do commit troca perda por repetição: uma queda no meio reentrega a linha. A retry é uma publicação nova,
+/// confirmada antes do ack da original, para a mensagem não se perder entre as duas. O prefetch limita o paralelismo, e o
+/// consumidor roda no processo da API (ADR-0009), dividindo recursos com as requisições.
 /// </summary>
 internal sealed partial class UserImportLineConsumerService(
     IOptions<RabbitMqOptions> rabbitOptions,

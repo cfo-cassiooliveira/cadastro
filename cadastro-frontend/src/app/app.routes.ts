@@ -3,7 +3,10 @@ import { authGuard, roleGuard, visitorGuard } from './auth/auth.guard';
 import { LOG_INVESTIGATOR_ROLE, USER_IMPORTER_ROLE } from './auth/auth.model';
 import { logSearchGuard } from './log-search/log-search.guard';
 
-/** Rotas da aplicação (spec 001); cadastro e listagem entram com as tarefas T21 e T22. */
+/**
+ * Rotas da aplicação, todas carregadas sob demanda. Os guards só evitam abrir uma tela que a pessoa não pode usar: quem
+ * autoriza é a API.
+ */
 export const routes: Routes = [
   {
     path: '',

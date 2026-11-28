@@ -3,6 +3,8 @@ namespace Cadastro.Infrastructure.Keycloak;
 /// <summary>
 /// Limita as criações por segundo espaçando as permissões (intervalo mínimo entre duas): com 10 por segundo, uma a cada 100 ms.
 /// Todas as instâncias de consumo do processo compartilham o mesmo limitador.
+/// Protege o Keycloak, que também atende os logins, de um lote grande. O custo é o tempo (5.000 linhas a 10 por segundo
+/// levam mais de 8 minutos). O limite é por processo: com mais instâncias da API, a taxa total se multiplica.
 /// </summary>
 internal sealed class CreationRateLimiter(int permitsPerSecond, TimeProvider timeProvider)
 {

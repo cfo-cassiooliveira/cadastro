@@ -1,5 +1,6 @@
 # Frontend Angular: build de produção (AOT) servido por nginx sem privilégios de root.
-# Versões fixadas por digest (OWASP A03): Node 24.22.2 / nginx 1.28.2. Atualize tag e digest juntos.
+# Imagens fixadas por tag e digest (OWASP A03). Atualize os dois juntos. O "apk upgrade" abaixo é a exceção: com ele a
+# imagem final também depende da data do build.
 FROM node:24.22.2-alpine@sha256:a34ab6d7f6f4813f4d0c5469d74685604b962fbdbf5793a7bc7b4998ecb867c8 AS build
 WORKDIR /app
 COPY package.json package-lock.json ./

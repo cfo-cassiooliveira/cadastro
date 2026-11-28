@@ -30,6 +30,7 @@ public sealed class ClamAvOptions
 /// Cliente do clamd pelo comando <c>zINSTREAM</c>: envia o arquivo em blocos (4 bytes de tamanho em big-endian + dados,
 /// terminando com tamanho zero) e lê a resposta. Qualquer falha (conexão, timeout, resposta inesperada) lança
 /// <see cref="VirusScannerUnavailableException"/>: o upload é recusado, nunca aceito sem verificar (fail-closed).
+/// O custo do fail-closed é que não há envio de arquivo enquanto o antivírus estiver fora ou carregando as assinaturas.
 /// </summary>
 internal sealed class ClamdVirusScanner(IOptions<ClamAvOptions> options) : IVirusScanner
 {

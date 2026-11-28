@@ -5,6 +5,8 @@ namespace Cadastro.Application.LogSearch;
 /// <summary>
 /// Porta da pseudonimização de dado pessoal nos logs (ADR-0003 do graylog), implementada na Infrastructure com
 /// HMAC-SHA256. A mesma especificação do legado: o mesmo valor gera o mesmo token nos dois sistemas.
+/// HMAC com chave, e não hash simples, porque CPF e telefone têm poucas combinações. O custo é guardar e rotacionar a chave,
+/// mantendo as anteriores enquanto houver log retido.
 /// </summary>
 public interface ILogPseudonymizer
 {

@@ -18,7 +18,7 @@ using Microsoft.Extensions.Options;
 
 namespace Cadastro.Infrastructure;
 
-/// <summary>Registro dos adaptadores de infraestrutura (Keycloak e pseudonimização dos logs).</summary>
+/// <summary>Registro dos adaptadores: Keycloak, persistência, cifra, antivírus, mensageria e pseudonimização dos logs.</summary>
 public static class DependencyInjection
 {
     /// <summary>Nome da connection string do runtime (<c>ConnectionStrings:ImportDb</c>, login <c>cadastro_app</c>).</summary>

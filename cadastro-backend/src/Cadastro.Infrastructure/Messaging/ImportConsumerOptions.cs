@@ -34,7 +34,7 @@ public sealed class ImportConsumerOptions
     [Range(1, 3600)]
     public int ReconnectDelaySeconds { get; set; } = 5;
 
-    /// <summary>Quantas vezes seguidas a publicação na retry (ou o ack) pode falhar antes de encerrar a linha como erro e ir à DLQ.</summary>
+    /// <summary>Quantas vezes a publicação na retry pode falhar, para a mesma mensagem, antes de encerrar a linha como erro e ir à DLQ.</summary>
     [Range(1, 4)]
     public int MaxRepublishFailures { get; set; } = 3;
 

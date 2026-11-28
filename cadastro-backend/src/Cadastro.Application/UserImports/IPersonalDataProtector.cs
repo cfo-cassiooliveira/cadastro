@@ -19,13 +19,14 @@ public interface IPersonalDataProtector
 
     /// <summary>
     /// Índice cego (HMAC-SHA256) do e-mail normalizado (trim, NFC e minúsculas), determinístico para a chave atual:
-    /// permite achar/duplicar por e-mail sem guardar o e-mail em claro.
+    /// permite comparar e-mails sem guardar o valor em claro. É gravado e indexado; nenhuma consulta o usa hoje (a duplicidade
+    /// dentro do arquivo é detectada em memória, antes da cifra).
     /// </summary>
     byte[] ComputeEmailIndex(string email);
 
     /// <summary>
     /// Igual a <see cref="ComputeEmailIndex(string)"/>, mas com a chave da versão gravada na linha
-    /// (<c>EmailIndexKeyVersion</c>); é o que a busca deve usar depois de uma rotação. Versão desconhecida lança.
+    /// (<c>EmailIndexKeyVersion</c>); serve para comparar com índices gravados antes de uma rotação. Versão desconhecida lança.
     /// </summary>
     byte[] ComputeEmailIndex(string email, string keyVersion);
 }
