@@ -4,7 +4,10 @@ using Microsoft.AspNetCore.RateLimiting;
 
 namespace Cadastro.Api.Common;
 
-/// <summary>Limites por IP (endpoints anônimos) e por usuário (pesquisa em logs), configuráveis em <c>RateLimiting:*</c>.</summary>
+/// <summary>
+/// Limites por IP (endpoints anônimos) e por usuário (pesquisa em logs e envio da importação), configuráveis em
+/// <c>RateLimiting:*</c>. Janela fixa e em memória: simples, mas vale por instância e admite rajada na virada da janela.
+/// </summary>
 internal static partial class RateLimitPolicies
 {
     /// <summary>

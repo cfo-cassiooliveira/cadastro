@@ -81,6 +81,9 @@ public interface IUploadUserImportHandler
 /// Fluxo: tamanho, antivírus (fail-closed), hash e reenvio, extração e validação em streaming, cifra dos dados das
 /// linhas válidas e gravação do lote em <see cref="ImportBatchStatus.AwaitingConfirmation"/>. Linhas inválidas não são
 /// gravadas: só entram nas contagens e nos códigos devolvidos.
+/// <para>A ordem importa: nada é interpretado antes do antivírus, e a validação acontece antes de gravar, para o erro de
+/// formato aparecer na hora e não depois da confirmação. Custo: o envio é síncrono e as linhas válidas ficam em memória até a
+/// gravação, o que o limite de 5 MB e 5.000 linhas torna aceitável.</para>
 /// </summary>
 internal sealed partial class UploadUserImportHandler(
     IVirusScanner scanner,

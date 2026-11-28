@@ -21,7 +21,10 @@ export interface QueuedResponse {
   readonly messages: number;
 }
 
-/** Cliente da API de importação em lote. O antiforgery (`X-XSRF-TOKEN`) é anexado pelo interceptor nos POST. */
+/**
+ * Cliente da API de importação em lote. O antiforgery (`X-XSRF-TOKEN`) é anexado pelo interceptor nos POST. Erros viram
+ * `ApiResult` com status e código, para a tela escolher a mensagem sem exibir texto vindo do servidor.
+ */
 @Injectable({ providedIn: 'root' })
 export class UserImportService {
   private readonly http = inject(HttpClient);

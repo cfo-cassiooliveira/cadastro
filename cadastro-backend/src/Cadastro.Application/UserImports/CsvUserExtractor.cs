@@ -8,6 +8,8 @@ namespace Cadastro.Application.UserImports;
 /// Aceita campos entre aspas (vírgula, aspas dobradas e quebra de linha dentro do campo) e ignora linhas em branco.
 /// A memória por registro é limitada: cada campo guarda no máximo 500 caracteres e só as primeiras colunas são mantidas,
 /// então uma linha com milhões de vírgulas vira <c>row.malformed</c> sem alocar milhões de campos.
+/// <para>O parser é próprio para impor esses limites já na leitura. Em troca, só entende o formato do contrato: vírgula como
+/// separador e as quatro colunas do cabeçalho, nessa ordem.</para>
 /// </summary>
 internal sealed class CsvUserExtractor : IUserExtractor
 {

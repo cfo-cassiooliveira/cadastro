@@ -17,7 +17,7 @@ public sealed class ProtectedPersonalData
     /// <param name="email">E-mail cifrado.</param>
     /// <param name="cpf">CPF cifrado.</param>
     /// <param name="phone">Telefone cifrado; <c>null</c> quando não informado.</param>
-    /// <param name="emailIndex">Índice cego (HMAC) do e-mail normalizado, para busca e detecção de duplicidade sem decifrar.</param>
+    /// <param name="emailIndex">Índice cego (HMAC) do e-mail normalizado, que permite comparar e-mails sem decifrar.</param>
     /// <param name="keyVersion">Identificador da versão da chave que cifrou os valores.</param>
     /// <param name="emailIndexKeyVersion">Versão da chave que gerou o índice; por padrão, a mesma de <paramref name="keyVersion"/>.</param>
     public ProtectedPersonalData(
@@ -55,6 +55,6 @@ public sealed class ProtectedPersonalData
     /// <summary>Identificador da versão da chave que cifrou os valores.</summary>
     public string KeyVersion { get; }
 
-    /// <summary>Versão da chave que gerou o índice cego; a busca por e-mail deve recalcular o índice com esta versão.</summary>
+    /// <summary>Versão da chave que gerou o índice cego; uma busca por e-mail teria de recalcular o índice com esta versão.</summary>
     public string EmailIndexKeyVersion { get; }
 }

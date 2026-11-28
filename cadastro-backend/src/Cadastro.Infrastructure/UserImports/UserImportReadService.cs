@@ -5,7 +5,11 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Cadastro.Infrastructure.UserImports;
 
-/// <summary>Leitura da importação direto para DTO (<c>AsNoTracking</c>): nenhuma coluna de dado pessoal é projetada.</summary>
+/// <summary>
+/// Leitura da importação direto para DTO (<c>AsNoTracking</c>): nenhuma coluna de dado pessoal é projetada. O progresso é
+/// contado nas linhas a cada consulta, o que inclui estados que os contadores do lote não têm (na fila, canceladas), ao custo
+/// de uma agregação por atualização da tela.
+/// </summary>
 internal sealed class UserImportReadService(CadastroDbContext db) : IUserImportReadService
 {
     /// <inheritdoc />

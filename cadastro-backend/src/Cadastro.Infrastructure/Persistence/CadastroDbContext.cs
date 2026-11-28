@@ -56,7 +56,7 @@ public sealed class CadastroDbContext(DbContextOptions<CadastroDbContext> option
             b.Property(x => x.Status).HasConversion<string>().HasMaxLength(30).IsUnicode(false);
             b.Property(x => x.CreatedBy).HasMaxLength(200).IsRequired();
             b.Ignore(x => x.FinishedLines);
-            // Concorrência otimista: consumidores em paralelo atualizam os contadores; o segundo a gravar relê e tenta de novo.
+            // Concorrência otimista nos comandos sobre o lote; os contadores do consumidor usam UPDATE atômico (UserImportWriter).
             b.Property(x => x.RowVersion).IsRowVersion();
             // Idempotência do reenvio: o mesmo arquivo só existe uma vez, exceto lotes cancelados (podem ser reenviados).
             b.HasIndex(x => x.FileHash).IsUnique().HasFilter("[Status] <> 'Cancelled'").HasDatabaseName("ux_import_batches_file_hash");
@@ -81,7 +81,7 @@ public sealed class CadastroDbContext(DbContextOptions<CadastroDbContext> option
             l.Ignore(x => x.HasPersonalData);
             l.HasOne<ImportBatch>().WithMany().HasForeignKey(x => x.BatchId).OnDelete(DeleteBehavior.Cascade);
             l.HasIndex(x => new { x.BatchId, x.LineNumber }).IsUnique().HasDatabaseName("ux_import_lines_batch_line");
-            // Chave por e-mail (achar/detectar duplicidade sem decifrar); só linhas com dado pessoal ainda guardado.
+            // HMAC do e-mail, filtrado às linhas que ainda guardam dado pessoal; nenhuma consulta usa este índice hoje.
             l.HasIndex(x => x.EmailIndex).HasFilter("[EmailIndex] IS NOT NULL").HasDatabaseName("ix_import_lines_email_index");
             l.HasIndex(x => new { x.BatchId, x.Status }).HasDatabaseName("ix_import_lines_batch_status");
         });

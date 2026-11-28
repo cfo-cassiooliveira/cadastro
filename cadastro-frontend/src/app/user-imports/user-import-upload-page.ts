@@ -46,7 +46,8 @@ export function validateFile(file: File | null): string | null {
 
 /**
  * Envio do CSV e resumo do lote (confirmar ou cancelar). O `summaryToken` vem só na resposta 201 e fica apenas neste
- * signal: não vai a storage, URL nem log.
+ * signal: não vai a storage, URL nem log. Em troca, recarregar a página perde o resumo: o lote precisa ser cancelado no
+ * detalhe e o arquivo, enviado de novo.
  */
 @Component({
   selector: 'app-user-import-upload-page',

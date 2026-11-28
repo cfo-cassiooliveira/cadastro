@@ -9,7 +9,7 @@ namespace Cadastro.Application;
 public static class DependencyInjection
 {
     /// <summary>
-    /// Registra os casos de uso do consumidor das linhas (C5a-C5c). Separado de <see cref="AddApplication"/> porque exigem as portas
+    /// Registra os casos de uso do consumidor das linhas. Separado de <see cref="AddApplication"/> porque exigem as portas
     /// de identidade e do Legado, que só existem quando o consumidor está ligado.
     /// </summary>
     public static IServiceCollection AddUserImportProcessing(this IServiceCollection services)

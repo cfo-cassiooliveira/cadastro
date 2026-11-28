@@ -17,7 +17,11 @@ public interface IImportSummarySigner
     bool Matches(string? provided, Guid batchId, string ownerId, string fileHash, int validLines, int invalidLines, int duplicateLines);
 }
 
-/// <summary>HMAC-SHA256 com chave do servidor sobre hash do arquivo, contagens, id do lote e <c>sub</c> do autor.</summary>
+/// <summary>
+/// HMAC-SHA256 com chave do servidor sobre hash do arquivo, contagens, id do lote e <c>sub</c> do autor. O token não é
+/// gravado: é recalculado na confirmação. Custo: só aparece na resposta do envio, então quem a perde precisa cancelar o
+/// lote e enviar o arquivo de novo.
+/// </summary>
 public sealed class HmacImportSummarySigner : IImportSummarySigner
 {
     /// <summary>Tamanho mínimo da chave em bytes.</summary>

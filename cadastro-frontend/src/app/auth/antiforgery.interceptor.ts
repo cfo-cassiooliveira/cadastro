@@ -7,7 +7,10 @@ export const ANTIFORGERY_HEADER = 'X-XSRF-TOKEN';
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 
-/** Envia o token anti-CSRF (guardado em memória) nas chamadas que mudam estado, só para a própria origem. */
+/**
+ * Envia o token anti-CSRF (guardado em memória) nas chamadas que mudam estado, só para a própria origem. Com sessão por
+ * cookie o navegador anexa a credencial sozinho, então a API exige também este header.
+ */
 export const antiforgeryInterceptor: HttpInterceptorFn = (request, next) => {
   const token = inject(AuthService).antiforgeryToken();
   const sameOrigin = request.url.startsWith('/') && !request.url.startsWith('//');

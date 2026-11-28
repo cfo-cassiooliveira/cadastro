@@ -16,6 +16,9 @@ namespace Cadastro.Infrastructure.Keycloak;
 /// Cria os usuários da importação na Admin API do Keycloak com o client <c>cadastro-importer</c>: sem senha, com a ação
 /// obrigatória <c>UPDATE_PASSWORD</c>, atributo <c>importLineId</c> e e-mail de ativação com validade de 72 h.
 /// Só usa busca, criação de usuário e <c>execute-actions-email</c> (a role <c>manage-users</c> permite mais, risco aceito).
+/// <para>A mensagem pode chegar mais de uma vez e a criação no Keycloak não participa da transação do banco: o
+/// <c>importLineId</c> é o que permite reconhecer o usuário já criado por uma tentativa interrompida. Custo: buscas antes de
+/// cada criação, e o e-mail de ativação pode ser reenviado enquanto a senha não for definida.</para>
 /// </summary>
 internal sealed class KeycloakUserProvisioner(
     HttpClient httpClient,

@@ -63,7 +63,8 @@ const LINE_FILTERS: readonly { readonly value: LineStatus | ''; readonly label: 
 
 /**
  * Detalhe do lote: progresso, linhas paginadas (estado e motivo, sem dado pessoal), reprocessamento e relatório. Enquanto
- * o lote processa, atualiza a cada 3 s; o intervalo é desfeito ao concluir e ao sair da tela.
+ * o lote processa, atualiza a cada 3 s; o intervalo é desfeito ao concluir e ao sair da tela. Polling dispensa uma conexão
+ * aberta no servidor, ao custo de consultas repetidas por tela aberta e de um atraso de alguns segundos.
  */
 @Component({
   selector: 'app-user-import-detail-page',

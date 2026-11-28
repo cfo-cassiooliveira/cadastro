@@ -2,7 +2,8 @@ namespace Cadastro.Infrastructure.Persistence;
 
 /// <summary>
 /// Mensagem já processada pelo consumidor. A chave primária é o <c>messageId</c>: inserir de novo viola a unicidade, e é
-/// assim que a entrega duplicada (at least once) é descartada na mesma transação do efeito (Art. VII.2). Consumidor na tarefa C5b.
+/// assim que a entrega duplicada (at least once) é descartada na mesma transação do efeito (Art. VII.2). Cobre só o que está no
+/// banco: chamadas ao Keycloak e ao Legado feitas antes do commit precisam ser repetíveis por conta própria.
 /// </summary>
 public sealed class InboxMessage
 {

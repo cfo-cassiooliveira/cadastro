@@ -5,6 +5,8 @@ namespace Cadastro.Application.UserImports;
 /// <summary>
 /// Monta o envelope CloudEvents-like do steering de mensageria (<c>messageId</c>, <c>type</c>, <c>source</c>,
 /// <c>occurredAt</c>, <c>correlationId</c>, <c>causationId</c>, <c>data</c>) em JSON camelCase. O <c>data</c> leva só ids.
+/// Assim, nenhum dado pessoal passa pelo broker, pelas filas de retry ou pela DLQ; em troca, o consumidor depende do banco
+/// para processar qualquer linha.
 /// </summary>
 public static class EventEnvelope
 {

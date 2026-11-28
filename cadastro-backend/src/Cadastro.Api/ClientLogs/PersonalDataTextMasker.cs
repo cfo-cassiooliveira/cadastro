@@ -9,6 +9,7 @@ namespace Cadastro.Api.ClientLogs;
 /// Graylog (<c>lgpd-text.rule.tmpl</c>, ADR-0002): e-mail, CNPJ formatado, CPF e celular com DDD. A máscara vem da
 /// porta <see cref="ILogPseudonymizer"/> (mesma regra dos campos estruturados); texto livre nunca vira token
 /// (ADR-0003 do graylog, item 8).
+/// É uma rede de segurança, não uma garantia: nomes, endereços e valores fora desses formatos não são reconhecidos.
 /// </summary>
 internal static partial class PersonalDataTextMasker
 {

@@ -3,6 +3,8 @@ namespace Cadastro.Application.UserImports;
 /// <summary>
 /// Acumula o resultado da validação linha a linha: linhas válidas, inválidas e duplicadas (e-mail ou CPF repetido no
 /// arquivo). Só linhas bem formadas reservam e-mail e CPF; a primeira ocorrência vale e as seguintes são duplicadas.
+/// A comparação é em memória, enquanto os valores ainda estão em claro, e vale só dentro do arquivo; quem já tem conta é
+/// descoberto no processamento.
 /// </summary>
 internal sealed class UserImportValidation
 {

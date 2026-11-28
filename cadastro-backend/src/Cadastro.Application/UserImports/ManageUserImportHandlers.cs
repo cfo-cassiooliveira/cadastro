@@ -80,7 +80,11 @@ public interface IReprocessUserImportErrorsHandler
     Task<ImportCommandResult> HandleAsync(ReprocessUserImportErrorsCommand command, CancellationToken cancellationToken);
 }
 
-/// <summary>Confirma o lote conferindo o token e grava as mensagens de outbox junto, numa única transação (Art. VII.3).</summary>
+/// <summary>
+/// Confirma o lote conferindo o token e grava as mensagens de outbox junto, numa única transação (Art. VII.3): publicar direto
+/// no broker poderia deixar o lote confirmado sem mensagens, ou o contrário. Uma mensagem por pessoa permite repetir só a
+/// linha que falhar; o custo é uma transação com até 5.000 inserções na outbox.
+/// </summary>
 internal sealed partial class ConfirmUserImportHandler(
     IUserImportWriter writer, IImportSummarySigner signer, TimeProvider timeProvider, ILogger<ConfirmUserImportHandler> logger)
     : IConfirmUserImportHandler
