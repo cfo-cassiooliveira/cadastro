@@ -135,6 +135,8 @@ public sealed class ConsumerUnitTests
     public async Task Delivery_UnexpectedException_AfterFiveCycles_FailsTheLineAndRejects()
     {
         _process.HandleAsync(Arg.Any<ProcessUserImportLineCommand>(), Arg.Any<CancellationToken>()).Returns<LineProcessingResult>(_ => throw new InvalidOperationException("boom"));
+        _fail.HandleAsync(Arg.Any<FailUserImportLineCommand>(), Arg.Any<CancellationToken>())
+            .Returns(new LineProcessingResult(LineProcessingDisposition.Failed, ImportFailureCodes.RetriesExhausted));
 
         var decision = await RunAsync(attempt: ImportRetryPolicy.MaxCycles);
 
@@ -142,13 +144,53 @@ public sealed class ConsumerUnitTests
         await _fail.Received(1).HandleAsync(new FailUserImportLineCommand(MessageId, BatchId, LineId, ImportFailureCodes.RetriesExhausted), Arg.Any<CancellationToken>());
     }
 
+    // Regressão: com o banco fora a linha não era marcada, mas a mensagem ia à DLQ mesmo assim (linha Pending e lote preso em Processing).
     [Fact]
-    public async Task Delivery_WhenMarkingTheLineAlsoFails_StillRejects()
+    public async Task Delivery_AfterFiveCycles_WhenMarkingTheLineThrows_GoesBackToTheRetryInsteadOfTheDeadLetterQueue()
     {
         _process.HandleAsync(Arg.Any<ProcessUserImportLineCommand>(), Arg.Any<CancellationToken>()).Returns<LineProcessingResult>(_ => throw new InvalidOperationException("boom"));
         _fail.HandleAsync(Arg.Any<FailUserImportLineCommand>(), Arg.Any<CancellationToken>()).Returns<LineProcessingResult>(_ => throw new InvalidOperationException("db down"));
 
-        (await RunAsync(attempt: ImportRetryPolicy.MaxCycles)).Action.ShouldBe(DeliveryAction.Reject);
+        var decision = await RunAsync(attempt: ImportRetryPolicy.MaxCycles);
+
+        decision.ShouldBe(new DeliveryDecision(DeliveryAction.Retry, ImportRetryPolicy.MaxCycles + 1, ImportFailureCodes.RetriesExhausted));
+    }
+
+    // Regressão: o RetryLater da marcação (10 conflitos de concorrência) era descartado e a mensagem ia à DLQ com a linha Pending.
+    [Fact]
+    public async Task Delivery_AfterFiveCycles_WhenMarkingTheLineKeepsConflicting_GoesBackToTheRetryInsteadOfTheDeadLetterQueue()
+    {
+        _process.HandleAsync(Arg.Any<ProcessUserImportLineCommand>(), Arg.Any<CancellationToken>()).Returns<LineProcessingResult>(_ => throw new InvalidOperationException("boom"));
+        _fail.HandleAsync(Arg.Any<FailUserImportLineCommand>(), Arg.Any<CancellationToken>())
+            .Returns(new LineProcessingResult(LineProcessingDisposition.RetryLater, ImportFailureCodes.ConcurrencyConflict));
+
+        var decision = await RunAsync(attempt: ImportRetryPolicy.MaxCycles);
+
+        decision.ShouldBe(new DeliveryDecision(DeliveryAction.Retry, ImportRetryPolicy.MaxCycles + 1, ImportFailureCodes.RetriesExhausted));
+    }
+
+    [Fact]
+    public async Task Delivery_WhenTheGiveUpIsPending_OnlyMarksTheLineThenRejects()
+    {
+        _fail.HandleAsync(Arg.Any<FailUserImportLineCommand>(), Arg.Any<CancellationToken>())
+            .Returns(new LineProcessingResult(LineProcessingDisposition.Failed, ImportFailureCodes.RetriesExhausted));
+
+        var decision = await RunAsync(attempt: ImportRetryPolicy.MaxCycles + 1);
+
+        decision.ShouldBe(new DeliveryDecision(DeliveryAction.Reject, Code: ImportFailureCodes.RetriesExhausted));
+        await _fail.Received(1).HandleAsync(new FailUserImportLineCommand(MessageId, BatchId, LineId, ImportFailureCodes.RetriesExhausted), Arg.Any<CancellationToken>());
+        await _process.DidNotReceiveWithAnyArgs().HandleAsync(default!, TestContext.Current.CancellationToken);
+    }
+
+    [Fact]
+    public async Task Delivery_WhenTheGiveUpIsPendingAndMarkingStillFails_RetriesWithoutAdvancingTheCounter()
+    {
+        _fail.HandleAsync(Arg.Any<FailUserImportLineCommand>(), Arg.Any<CancellationToken>()).Returns<LineProcessingResult>(_ => throw new InvalidOperationException("db down"));
+
+        var decision = await RunAsync(attempt: ImportRetryPolicy.MaxCycles + 1);
+
+        decision.ShouldBe(new DeliveryDecision(DeliveryAction.Retry, ImportRetryPolicy.MaxCycles + 1, ImportFailureCodes.RetriesExhausted));
+        await _process.DidNotReceiveWithAnyArgs().HandleAsync(default!, TestContext.Current.CancellationToken);
     }
 
     [Fact]

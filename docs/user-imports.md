@@ -146,6 +146,45 @@ O e-mail segue a forma que o Keycloak aceita: parte local de até 64 caracteres 
 
 Falha de credencial do importador (segredo errado, role removida) **não** vira erro de linha: as mensagens esperam sem gastar tentativas até alguém corrigir (ADR-0009).
 
+Esgotados os 5 ciclos, a mensagem só vai à DLQ **depois** de a linha ser marcada como `processing.retries_exhausted`. Se a marcação não grava (banco fora), a mensagem volta à fila de retry a cada 30 s e cada volta só tenta marcar a linha, sem reprocessar; quando o banco volta, a linha vira erro e o lote termina (ADR-0009, DEV-021).
+
+### Linhas presas em Pendente (procedimento manual, versões anteriores à DEV-021)
+
+Antes da DEV-021, uma mensagem podia ir à DLQ sem a linha ser marcada (banco fora no último ciclo ou conflitos seguidos). A linha
+fica **Pendente**, o lote fica **em processamento** para sempre (a tela não reprocessa nem cancela) e a retenção não apaga os dados
+cifrados. Sinal no Graylog: `Could not mark import line {LineId} as failed after the retries were exhausted` (só o id da linha).
+Não há funcionalidade para isso; a correção é pela operação, sem `UPDATE` manual no esquema `import`:
+
+1. **Confirmar que está presa** (consulta só de leitura): lote em processamento há mais de 1 h e linha pendente, **e** as filas
+   `cadastro.user-import-lines` e `cadastro.user-import-lines.retry` sem mensagens (prontas ou sem ack), **e** nenhuma linha do lote
+   na outbox sem publicar (`PublishedAtUtc IS NULL`). Mensagens nas filas indicam espera legítima (ex.: credencial recusada), não linha presa.
+
+   ```sql
+   -- Linhas pendentes de lotes em processamento há mais de 1 h (o pior caso normal são 5 ciclos de 30 s).
+   SELECT b.Id AS BatchId, l.Id AS LineId, l.LineNumber, b.ConfirmedAtUtc
+   FROM import.import_batches AS b
+   JOIN import.import_lines AS l ON l.BatchId = b.Id
+   WHERE b.Status = 'Processing' AND l.Status = 'Pending'
+     AND b.ConfirmedAtUtc < DATEADD(HOUR, -1, SYSDATETIMEOFFSET());
+   ```
+
+2. **Com a DEV-021 ou posterior no ar e o banco saudável**, pegar o corpo de cada mensagem no `Payload` da outbox (só ids, sem
+   dado pessoal):
+
+   ```sql
+   SELECT Id, Payload FROM import.outbox_messages WHERE JSON_VALUE(Payload, '$.data.lineId') = @lineId;
+   ```
+
+   **Não procure a mensagem com *Get messages* na DLQ.** Ela é uma fila quorum sem DLX: cada leitura devolvida à fila conta como
+   entrega e, ao passar do limite padrão (20), a mensagem é descartada sem aviso.
+3. Para cada uma, em *Exchanges* > `cadastro.events` > *Publish message*: routing key `cadastro.user-import-line.accepted.v1`,
+   header `x-retry-count` = `6`, propriedades `message_id` = o `messageId` do corpo, `content_type` = `application/json`,
+   `delivery_mode` = 2, e o corpo idêntico. Com o contador 6 o consumidor **só** marca a linha como `processing.retries_exhausted`
+   (não cria usuário) e devolve a mensagem à DLQ; com todas as linhas encerradas o lote vai para *Concluído com erros*.
+4. Conferir com a consulta do passo 1 (zero linhas) e avisar quem enviou o lote: as linhas podem ser **Reprocessadas** pela tela; se
+   não forem, a retenção de 90 dias passa a valer a partir do fim do lote. As mensagens antigas da DLQ podem então ser descartadas
+   pela operação.
+
 ## Limites
 
 5 MB e 5.000 linhas por arquivo · **10 criações por segundo** (protege a Admin API do Keycloak) · link de ativação válido por **72 h** ·

@@ -19,8 +19,9 @@ public sealed class UserImportConsumerTests(ImportDatabaseFixture database, Rabb
 
     private static string NewEmail(string prefix) => $"{prefix}.{Guid.NewGuid():N}@example.test";
 
-    private Task<ConsumerHarness> StartAsync(Func<ProvisionUserRequest, Exception?>? fault = null, bool instantIdentity = false) =>
-        ConsumerHarness.StartAsync(database, broker, keycloak, fault, instantIdentity);
+    private Task<ConsumerHarness> StartAsync(
+        Func<ProvisionUserRequest, Exception?>? fault = null, bool instantIdentity = false, Func<Exception?>? failLineFault = null) =>
+        ConsumerHarness.StartAsync(database, broker, keycloak, fault, instantIdentity, failLineFault);
 
     [Fact]
     public async Task Consumer_CreatesUserWithoutPasswordWithUpdatePasswordAndSendsActivationEmailValidFor72Hours()
@@ -122,6 +123,36 @@ public sealed class UserImportConsumerTests(ImportDatabaseFixture database, Rabb
         line.Status.ShouldBe(ImportLineStatus.Error);
         line.FailureReason.ShouldBe(ImportFailureCodes.RetriesExhausted);
         line.HasPersonalData.ShouldBeTrue();
+    }
+
+    // Regressão: esgotados os ciclos com o banco fora, a mensagem ia à DLQ sem marcar a linha (Pending para sempre, lote em Processing).
+    [Fact]
+    public async Task Consumer_WhenTheLineCannotBeMarkedAfterTheLastCycle_KeepsTheMessageAliveUntilTheDatabaseIsBack()
+    {
+        const int Outages = 3;
+        var processAttempts = 0;
+        var markAttempts = 0;
+        await using var harness = await StartAsync(
+            _ =>
+            {
+                Interlocked.Increment(ref processAttempts);
+                return new InvalidOperationException("unexpected failure");
+            },
+            failLineFault: () => Interlocked.Increment(ref markAttempts) <= Outages ? new InvalidOperationException("database down") : null);
+
+        var seeded = await harness.SeedAndPublishAsync([("Ivo Nunes", NewEmail("ivo"), null)]);
+        var state = await harness.WaitForBatchAsync(seeded.BatchId, timeoutSeconds: 120);
+        await harness.WaitForDeadLettersAsync(1);
+
+        // 1 entrega + 5 ciclos processam; as voltas seguintes só tentam encerrar a linha, sem reprocessar.
+        processAttempts.ShouldBe(ImportRetryPolicy.MaxCycles + 1);
+        markAttempts.ShouldBe(Outages + 1);
+        state.Batch.Status.ShouldBe(ImportBatchStatus.CompletedWithErrors);
+        var line = state.Lines.Single();
+        line.Status.ShouldBe(ImportLineStatus.Error);
+        line.FailureReason.ShouldBe(ImportFailureCodes.RetriesExhausted);
+        (await broker.MessageCountAsync(RabbitMqFixture.DlqQueue)).ShouldBe(1u);
+        (await broker.MessageCountAsync(RabbitMqFixture.RetryQueue)).ShouldBe(0u);
     }
 
     [Fact]

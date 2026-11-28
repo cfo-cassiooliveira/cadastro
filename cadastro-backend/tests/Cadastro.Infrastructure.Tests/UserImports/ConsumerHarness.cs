@@ -70,6 +70,14 @@ internal sealed class FaultInjectingProvisioner(IIdentityUserProvisioner inner, 
         fault(request) is { } exception ? throw exception : inner.ProvisionAsync(request, cancellationToken);
 }
 
+/// <summary>Decorator que injeta falhas (ex.: banco fora) antes de delegar ao caso de uso real "Encerrar linha com erro".</summary>
+internal sealed class FaultInjectingFailLineHandler(IFailUserImportLineHandler inner, Func<Exception?> fault) : IFailUserImportLineHandler
+{
+    /// <inheritdoc />
+    public Task<LineProcessingResult> HandleAsync(FailUserImportLineCommand command, CancellationToken cancellationToken) =>
+        fault() is { } exception ? throw exception : inner.HandleAsync(command, cancellationToken);
+}
+
 /// <summary>Provisionador instantâneo, para estressar a concorrência sem o custo do Keycloak.</summary>
 internal sealed class InstantProvisioner : IIdentityUserProvisioner
 {
@@ -108,7 +116,8 @@ internal sealed class ConsumerHarness : IAsyncDisposable
         RabbitMqFixture broker,
         KeycloakMailFixture keycloak,
         Func<ProvisionUserRequest, Exception?>? fault = null,
-        bool instantIdentity = false)
+        bool instantIdentity = false,
+        Func<Exception?>? failLineFault = null)
     {
         await database.MigrateAsync();
         await broker.PurgeAsync();
@@ -164,6 +173,14 @@ internal sealed class ConsumerHarness : IAsyncDisposable
             services.Remove(original);
             services.AddTransient<IIdentityUserProvisioner>(sp =>
                 new FaultInjectingProvisioner((IIdentityUserProvisioner)original.ImplementationFactory!(sp), fault));
+        }
+
+        if (failLineFault is not null)
+        {
+            var original = services.Last(d => d.ServiceType == typeof(IFailUserImportLineHandler));
+            services.Remove(original);
+            services.AddScoped<IFailUserImportLineHandler>(sp => new FaultInjectingFailLineHandler(
+                (IFailUserImportLineHandler)ActivatorUtilities.CreateInstance(sp, original.ImplementationType!), failLineFault));
         }
 
         var provider = services.BuildServiceProvider();
